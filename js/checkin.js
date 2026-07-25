@@ -37,10 +37,7 @@ function ringStyle(sw, status) {
 
 function gearHandler(e) {
   e.preventDefault();
-  const ok = confirm(
-    "Estás por entrar a Configuración crítica (destinatarios, intervalo, apagar el switch).\n\n" +
-    "Por seguridad te pedimos confirmar de nuevo. ¿Continuar?"
-  );
+  const ok = confirm(t("checkin.gear_confirm"));
   if (ok) location.href = `configure-switch.html?id=${CURRENT_SWITCH_ID}`;
 }
 
@@ -48,8 +45,8 @@ function render() {
   const sw = loadCurrentSwitch();
   const main = qs("#main");
   if (!sw) {
-    main.innerHTML = `<div class="empty-state"><span class="icon">🛟</span><p>No tenés switches todavía.</p>
-      <a class="btn btn-primary" style="width:auto;display:inline-flex;" href="create-switch.html">+ Crear switch</a></div>`;
+    main.innerHTML = `<div class="empty-state"><span class="icon">🛟</span><p>${t("checkin.no_switches")}</p>
+      <a class="btn btn-primary" style="width:auto;display:inline-flex;" href="create-switch.html">${t("common.create_switch_btn")}</a></div>`;
     return;
   }
 
@@ -59,8 +56,9 @@ function render() {
   const status = switchStatus(sw);
   lastStatus = status;
   const meta = statusMeta(status);
-  const names = recipientNames(sw) || "tus destinatarios";
+  const names = recipientNames(sw) || t("checkin.default_recipients");
   const isSesion = sw.mode === "sesion";
+  const locationSuffix = sw.location ? t("checkin.location_suffix") : "";
 
   // Overlay de alarma / disparo (Modo Sesión vencido, o gatillado manualmente)
   const overlay = qs("#alarm-overlay");
@@ -77,55 +75,54 @@ function render() {
     stageHtml = `
       <div class="card text-center" style="padding:28px 18px;">
         <div style="font-size:40px;">🚨</div>
-        <h2 style="margin:10px 0 4px;">Mensaje enviado (simulado)</h2>
-        <p class="text-sm muted">Se avisó a ${names} porque no hubo confirmación dentro del período de gracia.</p>
+        <h2 style="margin:10px 0 4px;">${t("checkin.triggered_title")}</h2>
+        <p class="text-sm muted">${t("checkin.triggered_body", { names })}</p>
       </div>`;
-    bottomExtra = `<button class="btn btn-outline mt-16" onclick="resetSwitchDemo()">Reiniciar switch (demo)</button>`;
+    bottomExtra = `<button class="btn btn-outline mt-16" onclick="resetSwitchDemo()">${t("checkin.btn_reset_demo")}</button>`;
   } else if (status !== "off") {
+    const dateSuffix = sw.mode === "legado" ? " (" + formatDate(sw.nextDue).split(" · ")[0] + ")" : "";
     stageHtml = `
       <div class="checkin-stage">
         <div class="ring" id="ring" style="${ringStyle(sw, status)}">
           <button class="big-btn" style="background:${isSesion ? "var(--color-primary)" : "var(--color-green)"};" id="checkin-btn">
             <span class="icon">✅</span>
-            <span>${isSesion ? "LLEGUÉ BIEN" : "ESTOY BIEN"}</span>
-            <span class="sub">Tocá para confirmar</span>
+            <span>${isSesion ? t("checkin.btn_cuidame") : t("checkin.btn_legado")}</span>
+            <span class="sub">${t("checkin.btn_sub")}</span>
           </button>
         </div>
       </div>
       <div class="contract-box">
-        Si no tocás este botón antes de las <b>${formatClock(sw.nextDue)}${sw.mode === "legado" ? " (" + formatDate(sw.nextDue).split(" · ")[0] + ")" : ""}</b>,
-        avisamos a <b>${names}</b>${sw.location ? " con tu última ubicación" : ""}.
+        ${t("checkin.contract", { time: `<b>${formatClock(sw.nextDue)}${dateSuffix}</b>`, date: "", names: `<b>${names}</b>`, location: locationSuffix })}
       </div>`;
 
     if (status === "grace" && sw.verifierId) {
       const verifier = getRecipient(sw.verifierId);
       stageHtml += `
         <div class="warn-banner mt-16">
-          ⏳ Antes de avisar, le preguntamos a <b>${verifier ? verifier.name : "tu verificador"}</b> si sabe algo de vos.
-          Esperando respuesta…
+          ⏳ ${t("checkin.verifier_wait", { verifier: `<b>${verifier ? verifier.name : t("checkin.default_verifier")}</b>` })}
         </div>`;
     }
 
     if (isSesion) {
       bottomExtra = `
-        <button class="btn btn-red mt-16" id="panic-btn">🚨 Botón de pánico — avisar ahora</button>`;
+        <button class="btn btn-red mt-16" id="panic-btn">${t("checkin.btn_panic")}</button>`;
     }
   } else {
-    stageHtml = `<div class="empty-state"><span class="icon">⏸️</span><p>Este switch está apagado.</p></div>`;
+    stageHtml = `<div class="empty-state"><span class="icon">⏸️</span><p>${t("checkin.off_message")}</p></div>`;
   }
 
   main.innerHTML = `
     <div class="status-strip" style="background:${status === "active" ? "var(--color-green-bg)" : status === "grace" ? "var(--color-yellow-bg)" : status === "off" ? "var(--color-surface)" : "var(--color-red-bg)"}; color:${status === "active" ? "var(--color-green)" : status === "grace" ? "var(--color-yellow)" : status === "off" ? "var(--color-text-muted)" : "var(--color-red)"};">
       <span><span class="dot ${meta.dot}"></span> &nbsp;${meta.label}</span>
-      <span>${sw.mode === "legado" ? "Modo Legado" : "Modo Sesión"}</span>
+      <span>${modeLabel(sw.mode)}</span>
     </div>
     ${stageHtml}
     ${bottomExtra}
     <div class="demo-banner mt-16">
-      <strong>DEMO</strong> Controles solo para probar el prototipo:
+      <strong>${t("common.demo")}</strong> ${t("checkin.demo_controls_label")}
       <div class="btn-block-group mt-8">
-        <button class="btn btn-outline btn-sm" onclick="simulateExpire()">Simular vencimiento ahora</button>
-        <button class="btn btn-outline btn-sm" onclick="resetSwitchDemo()">Reiniciar check-in (volver a estado activo)</button>
+        <button class="btn btn-outline btn-sm" onclick="simulateExpire()">${t("checkin.btn_simulate_expire")}</button>
+        <button class="btn btn-outline btn-sm" onclick="resetSwitchDemo()">${t("checkin.btn_reset_checkin")}</button>
       </div>
     </div>
   `;
@@ -140,13 +137,15 @@ function renderAlarmOverlay(sw, status) {
   const overlay = qs("#alarm-overlay");
   const alarmMs = sw.alarmMs || 90000;
   const remaining = status === "alarm" ? Math.max(0, sw.nextDue + alarmMs - Date.now()) : 0;
+  const names = recipientNames(sw) || t("checkin.default_recipients");
+  const locationSuffix = sw.location ? t("checkin.location_suffix") : "";
 
   if (status === "triggered") {
     overlay.innerHTML = `
       <div class="alarm-screen">
-        <h2>🚨 Alerta enviada (simulado)</h2>
-        <p>Se avisó a ${recipientNames(sw) || "tus contactos"}${sw.location ? " con tu última ubicación" : ""}. No se envió nada real — esto es un prototipo.</p>
-        <button class="cancel-btn" onclick="resetSwitchDemo()">REINICIAR (DEMO)</button>
+        <h2>${t("checkin.alarm_triggered_title")}</h2>
+        <p>${t("checkin.alarm_triggered_body", { names, location: locationSuffix })}</p>
+        <button class="cancel-btn" onclick="resetSwitchDemo()">${t("checkin.btn_reset_demo_caps")}</button>
       </div>`;
     return;
   }
@@ -154,11 +153,11 @@ function renderAlarmOverlay(sw, status) {
   const secs = Math.ceil(remaining / 1000);
   overlay.innerHTML = `
     <div class="alarm-screen">
-      <h2>🚨 Enviando alerta en…</h2>
+      <h2>${t("checkin.alarm_countdown_title")}</h2>
       <div class="countdown" id="alarm-countdown">${secs}</div>
-      <p>No confirmaste a tiempo. Vamos a avisar a <b>${recipientNames(sw) || "tus contactos"}</b>${sw.location ? " con tu ubicación" : ""}.</p>
-      <button class="cancel-btn" id="alarm-cancel">CANCELAR</button>
-      <a class="panic-link" href="#" onclick="event.preventDefault()">Esto es un prototipo — no se enviará nada real</a>
+      <p>${t("checkin.alarm_countdown_body", { names: `<b>${names}</b>`, location: locationSuffix })}</p>
+      <button class="cancel-btn" id="alarm-cancel">${t("checkin.btn_cancel_caps")}</button>
+      <a class="panic-link" href="#" onclick="event.preventDefault()">${t("checkin.alarm_prototype_note")}</a>
     </div>`;
   const cancelBtn = qs("#alarm-cancel");
   if (cancelBtn) cancelBtn.onclick = () => handleCheckin(sw);
@@ -169,15 +168,15 @@ function handleCheckin(sw) {
   qs("#alarm-overlay").innerHTML = "";
   if (navigator.vibrate) navigator.vibrate(30);
   render();
-  showToast(sw.mode === "legado" ? "Listo. Nos vemos pronto 👋" : "¡Bien! Contador reiniciado ✅");
+  showToast(sw.mode === "legado" ? t("checkin.toast_legado") : t("checkin.toast_cuidame"));
 }
 
 function handlePanic(sw) {
-  const ok = confirm("¿Avisar a tus contactos ahora mismo, sin esperar? (Botón de pánico)");
+  const ok = confirm(t("checkin.panic_confirm"));
   if (!ok) return;
   sw.nextDue = Date.now() - ((sw.alarmMs || 90000) + 1000);
   saveSwitch(sw);
-  addHistory({ switchId: sw.id, type: "trigger_manual", note: "Botón de pánico activado por el usuario" });
+  addHistory({ switchId: sw.id, type: "trigger_manual", note: t("checkin.history_panic") });
   render();
 }
 
@@ -194,9 +193,9 @@ function resetSwitchDemo() {
   if (!sw) return;
   sw.nextDue = Date.now() + sw.intervalMs;
   saveSwitch(sw);
-  addHistory({ switchId: sw.id, type: "checkin", note: "Check-in confirmado (reinicio demo)" });
+  addHistory({ switchId: sw.id, type: "checkin", note: t("checkin.history_checkin_reset") });
   render();
-  showToast("Switch reiniciado");
+  showToast(t("checkin.toast_switch_reset"));
 }
 
 function tick() {

@@ -11,14 +11,15 @@
 <body data-page="create">
 <div class="phone">
   <header class="app-header with-border">
-    <a class="back-link" href="index.html" aria-label="Volver">←</a>
+    <a class="back-link" href="index.html" data-i18n-attr="aria-label:aria.back">←</a>
     <img class="brand-icon" src="img/kalvio-icon-256.png" alt="" />
-    <div class="flex-1"><h1>Nuevo switch</h1></div>
+    <div class="flex-1"><h1 id="header-title">Nuevo switch</h1></div>
   </header>
 
   <main class="app-main" id="main"></main>
 </div>
 
+<script src="js/i18n.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -29,29 +30,29 @@ function render() {
   const atFreeLimit = db.account.plan === "free" && db.switches.length >= 1;
 
   qs("#main").innerHTML = `
-    <p class="eyebrow">Paso 1 de 2</p>
-    <h2 style="margin:0 0 4px;">¿Qué tipo de switch necesitás?</h2>
-    <p class="text-sm muted" style="margin:0 0 18px;">Elegí el modo según la situación. Podés crear otros switches después.</p>
+    <p class="eyebrow">${t("create.step")}</p>
+    <h2 style="margin:0 0 4px;">${t("create.title")}</h2>
+    <p class="text-sm muted" style="margin:0 0 18px;">${t("create.subtitle")}</p>
 
     ${atFreeLimit ? `
       <div class="warn-banner">
-        💎 Tu plan gratuito incluye 1 switch. Ya tenés uno activo — para crear otro necesitás
-        <b>Pro</b>. <a href="#" onclick="event.preventDefault(); showToast('Pantalla de planes — pendiente de diseño')">Ver planes</a>.
+        💎 ${t("create.paywall", { pro: `<b>${t("create.pro")}</b>` })}
+        <a href="#" onclick="event.preventDefault(); showToast(t('create.toast_plans_pending'))">${t("create.view_plans")}</a>.
       </div>
     ` : ""}
 
     <button class="mode-card ${selectedMode === "legado" ? "selected" : ""}" onclick="pick('legado')">
-      <p class="mode-title">🕯️ Modo Legado</p>
-      <p class="mode-desc">Intervalo largo (días o semanas). Si no confirmás, avisamos por email — con un verificador de por medio para evitar falsas alarmas.</p>
+      <p class="mode-title">${t("create.mode_legado_title")}</p>
+      <p class="mode-desc">${t("create.mode_legado_desc")}</p>
     </button>
 
     <button class="mode-card ${selectedMode === "sesion" ? "selected" : ""}" onclick="pick('sesion')">
-      <p class="mode-title">📍 Modo Sesión</p>
-      <p class="mode-desc">Intervalo corto (minutos u horas), con ubicación. Ideal para viajes o citas. Si no confirmás, avisamos rápido por SMS, llamada o email.</p>
+      <p class="mode-title">${t("create.mode_cuidame_title")}</p>
+      <p class="mode-desc">${t("create.mode_cuidame_desc")}</p>
     </button>
 
-    <button class="btn btn-primary mt-16" id="continue-btn" ${selectedMode ? "" : "disabled"}>Continuar</button>
-    ${atFreeLimit ? `<p class="text-sm muted text-center mt-8">Este prototipo te deja seguir igual, solo para probar el flujo.</p>` : ""}
+    <button class="btn btn-primary mt-16" id="continue-btn" ${selectedMode ? "" : "disabled"}>${t("common.continue")}</button>
+    ${atFreeLimit ? `<p class="text-sm muted text-center mt-8">${t("create.demo_bypass")}</p>` : ""}
   `;
 
   const cont = qs("#continue-btn");
@@ -66,6 +67,7 @@ function pick(mode) {
   render();
 }
 
+qs("#header-title").textContent = t("create.header_title");
 render();
 </script>
 </body>

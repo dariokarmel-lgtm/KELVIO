@@ -2,15 +2,19 @@
 
 let filterSwitch = "all";
 
-const TYPE_META = {
-  created: { icon: "🆕", label: "Switch creado" },
-  checkin: { icon: "✅", label: "Check-in" },
-  invite: { icon: "✉️", label: "Invitación" },
-  invite_response: { icon: "👥", label: "Respuesta de destinatario" },
-  config: { icon: "⚙️", label: "Cambio de configuración" },
-  trigger_manual: { icon: "🚨", label: "Botón de pánico" },
-  trigger_sim: { icon: "🧪", label: "Simulación (Modo Prueba)" },
-};
+function typeMeta(type) {
+  const map = {
+    created: { icon: "🆕", key: "history.type_created" },
+    checkin: { icon: "✅", key: "history.type_checkin" },
+    invite: { icon: "✉️", key: "history.type_invite" },
+    invite_response: { icon: "👥", key: "history.type_invite_response" },
+    config: { icon: "⚙️", key: "history.type_config" },
+    trigger_manual: { icon: "🚨", key: "history.type_trigger_manual" },
+    trigger_sim: { icon: "🧪", key: "history.type_trigger_sim" },
+  };
+  const m = map[type];
+  return m ? { icon: m.icon, label: t(m.key) } : { icon: "•", label: type };
+}
 
 function render() {
   const switches = getSwitches();
@@ -19,7 +23,7 @@ function render() {
   qs("#main").innerHTML = `
     <div class="field">
       <select class="select" id="f-filter">
-        <option value="all" ${filterSwitch === "all" ? "selected" : ""}>Todos los switches</option>
+        <option value="all" ${filterSwitch === "all" ? "selected" : ""}>${t("history.filter_all")}</option>
         ${switches.map((s) => `<option value="${s.id}" ${filterSwitch === s.id ? "selected" : ""}>${s.name}</option>`).join("")}
       </select>
     </div>
@@ -27,7 +31,7 @@ function render() {
     ${entries.length === 0 ? `
       <div class="empty-state">
         <span class="icon">🕘</span>
-        <p>Todavía no hay actividad para mostrar.</p>
+        <p>${t("history.empty")}</p>
       </div>
     ` : entries.map(rowHtml).join("")}
   `;
@@ -39,7 +43,7 @@ function render() {
 }
 
 function rowHtml(h) {
-  const meta = TYPE_META[h.type] || { icon: "•", label: h.type };
+  const meta = typeMeta(h.type);
   const sw = h.switchId ? getSwitch(h.switchId) : null;
   const isSim = h.type === "trigger_sim";
   return `
@@ -47,7 +51,7 @@ function rowHtml(h) {
       <span style="font-size:18px;">${meta.icon}</span>
       <div class="flex-1">
         <div style="font-size:13.5px; font-weight:600;">${h.note}</div>
-        <div class="text-sm muted">${formatDate(h.ts)}${sw ? " · " + sw.name : ""}${isSim ? " · simulado, nada real" : ""}</div>
+        <div class="text-sm muted">${formatDate(h.ts)}${sw ? " · " + sw.name : ""}${isSim ? t("history.simulated_suffix") : ""}</div>
       </div>
     </div>
   `;

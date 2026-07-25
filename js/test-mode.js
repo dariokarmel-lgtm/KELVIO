@@ -6,38 +6,38 @@ let step = 0;
 
 function stepsFor(sw) {
   if (sw.mode === "legado") {
-    const names = recipientNames(sw) || "tus destinatarios";
+    const names = recipientNames(sw) || t("checkin.default_recipients");
     const verifier = sw.verifierId ? getRecipient(sw.verifierId) : null;
     return [
-      { title: "Vence el intervalo", desc: `No llegó el check-in de "${sw.name}" a tiempo.` },
-      { title: "Empieza el período de gracia", desc: `${sw.graceMs === 48 * HOUR ? "48" : "24"} horas con recordatorios escalados (push, SMS, email).` },
+      { title: t("testmode.step1_legado_title"), desc: t("testmode.step1_legado_desc", { name: sw.name }) },
+      { title: t("testmode.step2_legado_title"), desc: t("testmode.step2_legado_desc", { hours: sw.graceMs === 48 * HOUR ? "48" : "24" }) },
       verifier
-        ? { title: `Se consulta a ${verifier.name}`, desc: "Le preguntamos si sabe algo de vos, antes de avisar a los demás." }
-        : { title: "Sin verificador configurado", desc: "Se pasa directo al aviso final (recomendamos sumar un verificador)." },
-      { title: "Se decide avisar", desc: "No hubo respuesta que confirme que estás bien." },
-      { title: "Mensaje enviado (simulado)", desc: `Se avisó a ${names} por email.`, final: true },
+        ? { title: t("testmode.step3_verifier_title", { verifier: verifier.name }), desc: t("testmode.step3_verifier_desc") }
+        : { title: t("testmode.step3_noverifier_title"), desc: t("testmode.step3_noverifier_desc") },
+      { title: t("testmode.step4_legado_title"), desc: t("testmode.step4_legado_desc") },
+      { title: t("testmode.step5_legado_title"), desc: t("testmode.step5_legado_desc", { names }), final: true },
     ];
   }
-  const names = recipientNames(sw) || "tus destinatarios";
+  const names = recipientNames(sw) || t("checkin.default_recipients");
   return [
-    { title: "Vence el check-in", desc: `No se confirmó "${sw.name}" a tiempo.` },
-    { title: "Alarma inmediata", desc: `Countdown de ${Math.round((sw.alarmMs || 90000) / 1000)} segundos, sonido fuerte, pantalla roja.` },
-    { title: "Sin respuesta al countdown", desc: "El usuario no canceló a tiempo." },
-    { title: "Disparo automático (simulado)", desc: `Se envió ubicación + mensaje a ${names} por ${channelList(sw)}.`, final: true },
+    { title: t("testmode.step1_cuidame_title"), desc: t("testmode.step1_cuidame_desc", { name: sw.name }) },
+    { title: t("testmode.step2_cuidame_title"), desc: t("testmode.step2_cuidame_desc", { secs: Math.round((sw.alarmMs || 90000) / 1000) }) },
+    { title: t("testmode.step3_cuidame_title"), desc: t("testmode.step3_cuidame_desc") },
+    { title: t("testmode.step4_cuidame_title"), desc: t("testmode.step4_cuidame_desc", { names, channels: channelList(sw) }), final: true },
   ];
 }
 
 function channelList(sw) {
-  const list = ["email"];
-  if (sw.channels?.sms) list.push("SMS");
-  if (sw.channels?.call) list.push("llamada");
+  const list = [t("testmode.channel_email")];
+  if (sw.channels?.sms) list.push(t("testmode.channel_sms"));
+  if (sw.channels?.call) list.push(t("testmode.channel_call"));
   return list.join(", ");
 }
 
 function render() {
   const switches = getSwitches();
   if (switches.length === 0) {
-    qs("#main").innerHTML = `<div class="empty-state"><span class="icon">🛟</span><p>Creá un switch primero para poder probarlo.</p></div>`;
+    qs("#main").innerHTML = `<div class="empty-state"><span class="icon">🛟</span><p>${t("testmode.no_switches")}</p></div>`;
     return;
   }
   const sw = getSwitch(selectedId) || switches[0];
@@ -46,18 +46,18 @@ function render() {
 
   qs("#main").innerHTML = `
     <div class="demo-banner">
-      <strong>Modo Prueba</strong> Simulá una alerta paso a paso para ver cómo funciona. No se envía nada real a tus contactos.
+      <strong>${t("testmode.banner_label")}</strong> ${t("testmode.banner")}
     </div>
 
     <div class="field">
-      <label>Switch a probar</label>
+      <label>${t("testmode.select_label")}</label>
       <select class="select" id="f-switch" ${running ? "disabled" : ""}>
-        ${switches.map((s) => `<option value="${s.id}" ${s.id === sw.id ? "selected" : ""}>${s.name} (${s.mode === "legado" ? "Legado" : "Sesión"})</option>`).join("")}
+        ${switches.map((s) => `<option value="${s.id}" ${s.id === sw.id ? "selected" : ""}>${s.name} (${modeLabel(s.mode)})</option>`).join("")}
       </select>
     </div>
 
     ${!running ? `
-      <button class="btn btn-primary mt-16" id="start-btn">▶ Simular disparo</button>
+      <button class="btn btn-primary mt-16" id="start-btn">${t("testmode.start_btn")}</button>
     ` : `
       <div class="timeline mt-16">
         ${steps.map((s, i) => `
@@ -68,14 +68,14 @@ function render() {
         `).join("")}
       </div>
       ${step < steps.length - 1 ? `
-        <button class="btn btn-primary mt-16" id="next-btn">Siguiente paso →</button>
+        <button class="btn btn-primary mt-16" id="next-btn">${t("testmode.next_btn")}</button>
       ` : `
         <div class="card text-center mt-16">
           <div style="font-size:32px;">✅</div>
-          <p style="font-weight:700; margin:8px 0 4px;">Simulación terminada</p>
-          <p class="text-sm muted">Esto fue una simulación. No se envió nada real a tus contactos.</p>
+          <p style="font-weight:700; margin:8px 0 4px;">${t("testmode.done_title")}</p>
+          <p class="text-sm muted">${t("testmode.done_body")}</p>
         </div>
-        <button class="btn btn-secondary mt-16" id="restart-btn">Volver a probar</button>
+        <button class="btn btn-secondary mt-16" id="restart-btn">${t("testmode.restart_btn")}</button>
       `}
     `}
   `;
@@ -86,7 +86,7 @@ function render() {
   if (startBtn) startBtn.onclick = () => {
     running = true;
     step = 0;
-    addHistory({ switchId: sw.id, type: "trigger_sim", note: `Simulación de disparo iniciada (${sw.name})` });
+    addHistory({ switchId: sw.id, type: "trigger_sim", note: t("testmode.history_started", { name: sw.name }) });
     render();
   };
   const nextBtn = qs("#next-btn");

@@ -198,15 +198,17 @@ function formatDuration(ms) {
 
 function formatClock(ts) {
   const d = new Date(ts);
-  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString(currentLocale(), { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatDate(ts) {
   const d = new Date(ts);
-  return d.toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) +
+  return d.toLocaleDateString(currentLocale(), { day: "2-digit", month: "short", year: "numeric" }) +
     " · " + formatClock(ts);
 }
 
 function recipientNames(sw) {
-  return sw.recipients.map((id) => getRecipient(id)).filter(Boolean).map((r) => r.name.split(" ")[0]).join(" y ");
+  const names = sw.recipients.map((id) => getRecipient(id)).filter(Boolean).map((r) => r.name.split(" ")[0]);
+  if (names.length <= 1) return names.join("");
+  return names.slice(0, -1).join(", ") + " " + t("common.and") + " " + names[names.length - 1];
 }

@@ -2,14 +2,15 @@
 
 let showForm = false;
 
+qs("#fab-add").title = t("recipients.add_btn");
+
 function render() {
   const recipients = getRecipients();
   const switches = getSwitches();
 
   qs("#main").innerHTML = `
     <div class="info-banner">
-      ℹ️ Un destinatario nunca recibe la alerta real como primer contacto: siempre le mandamos
-      antes una invitación para que confirme que quiere ser tu contacto de confianza.
+      ℹ️ ${t("recipients.info_banner")}
     </div>
 
     ${showForm ? formHtml() : ""}
@@ -17,8 +18,8 @@ function render() {
     ${recipients.length === 0 ? `
       <div class="empty-state">
         <span class="icon">👥</span>
-        <p>Todavía no agregaste destinatarios.</p>
-        <button class="btn btn-primary" style="width:auto; display:inline-flex;" onclick="openForm()">+ Agregar destinatario</button>
+        <p>${t("recipients.empty")}</p>
+        <button class="btn btn-primary" style="width:auto; display:inline-flex;" onclick="openForm()">${t("recipients.add_btn")}</button>
       </div>
     ` : recipients.map((r) => rowHtml(r, switches)).join("")}
   `;
@@ -32,22 +33,22 @@ function render() {
 function formHtml() {
   return `
     <div class="card" id="add-form">
-      <p class="eyebrow">Nuevo destinatario</p>
+      <p class="eyebrow">${t("recipients.form_title")}</p>
       <div class="field">
-        <label for="nf-name">Nombre</label>
-        <input class="input" id="nf-name" placeholder="Ej: Juan Pérez" />
+        <label for="nf-name">${t("recipients.name_label")}</label>
+        <input class="input" id="nf-name" placeholder="${t("recipients.name_placeholder")}" />
       </div>
       <div class="field">
-        <label for="nf-phone">Teléfono</label>
+        <label for="nf-phone">${t("recipients.phone_label")}</label>
         <input class="input" id="nf-phone" placeholder="+54 9 11 ..." />
       </div>
       <div class="field mb-0">
-        <label for="nf-email">Email</label>
-        <input class="input" id="nf-email" placeholder="nombre@email.com" />
+        <label for="nf-email">${t("recipients.email_label")}</label>
+        <input class="input" id="nf-email" placeholder="${t("recipients.email_placeholder")}" />
       </div>
       <div class="flex gap-8 mt-16">
-        <button class="btn btn-secondary" id="cancel-form">Cancelar</button>
-        <button class="btn btn-primary" id="submit-form">Enviar invitación</button>
+        <button class="btn btn-secondary" id="cancel-form">${t("common.cancel")}</button>
+        <button class="btn btn-primary" id="submit-form">${t("recipients.submit_btn")}</button>
       </div>
     </div>
   `;
@@ -68,20 +69,20 @@ function rowHtml(r, switches) {
         </div>
         <span class="badge ${meta.badge}">${meta.icon} ${meta.label}</span>
       </div>
-      ${usedIn.length ? `<div class="text-sm muted mt-8">En: ${usedIn.map((s) => s.name).join(", ")}</div>` : ""}
-      ${isVerifierFor.length ? `<div class="mt-8"><span class="badge badge-violet">Verificador de ${isVerifierFor.map((s) => s.name).join(", ")}</span></div>` : ""}
+      ${usedIn.length ? `<div class="text-sm muted mt-8">${t("recipients.used_in", { list: usedIn.map((s) => s.name).join(", ") })}</div>` : ""}
+      ${isVerifierFor.length ? `<div class="mt-8"><span class="badge badge-violet">${t("recipients.verifier_of", { list: isVerifierFor.map((s) => s.name).join(", ") })}</span></div>` : ""}
 
       ${r.status !== "confirmed" ? `
         <div class="demo-banner mt-8" style="margin-bottom:0;">
-          <strong>DEMO</strong> En la app real, este estado cambia cuando la persona responde el link de invitación.
+          <strong>${t("common.demo")}</strong> ${t("recipients.demo_status_note")}
           <div class="flex gap-8 mt-8">
-            <button class="btn btn-outline btn-sm" onclick="setStatus('${r.id}','confirmed')">Simular: confirmó</button>
-            <button class="btn btn-outline btn-sm" onclick="setStatus('${r.id}','rejected')">Simular: rechazó</button>
+            <button class="btn btn-outline btn-sm" onclick="setStatus('${r.id}','confirmed')">${t("recipients.simulate_confirmed")}</button>
+            <button class="btn btn-outline btn-sm" onclick="setStatus('${r.id}','rejected')">${t("recipients.simulate_rejected")}</button>
           </div>
         </div>
       ` : ""}
 
-      <button class="btn btn-ghost btn-sm mt-8" style="width:auto; color:var(--color-red);" onclick="removeRecipient('${r.id}')">Quitar destinatario</button>
+      <button class="btn btn-ghost btn-sm mt-8" style="width:auto; color:var(--color-red);" onclick="removeRecipient('${r.id}')">${t("recipients.remove_btn")}</button>
     </div>
   `;
 }
@@ -102,14 +103,14 @@ function submitForm() {
   const phone = qs("#nf-phone").value.trim();
   const email = qs("#nf-email").value.trim();
   if (!name || (!phone && !email)) {
-    showToast("Completá al menos nombre y un contacto");
+    showToast(t("recipients.toast_missing_fields"));
     return;
   }
   saveRecipient({ name, phone, email, status: "pending" });
-  addHistory({ switchId: null, type: "invite", note: `Invitación enviada a ${name}` });
+  addHistory({ switchId: null, type: "invite", note: t("recipients.history_invite_sent", { name }) });
   showForm = false;
   render();
-  showToast(`Invitación "enviada" a ${name} (simulado)`);
+  showToast(t("recipients.toast_invite_sent", { name }));
 }
 
 function setStatus(id, status) {
@@ -117,12 +118,16 @@ function setStatus(id, status) {
   if (!r) return;
   r.status = status;
   saveRecipient(r);
-  addHistory({ switchId: null, type: "invite_response", note: `${r.name} ${status === "confirmed" ? "confirmó" : "rechazó"} la invitación` });
+  addHistory({
+    switchId: null,
+    type: "invite_response",
+    note: status === "confirmed" ? t("recipients.history_confirmed", { name: r.name }) : t("recipients.history_rejected", { name: r.name }),
+  });
   render();
 }
 
 function removeRecipient(id) {
-  if (!confirm("¿Quitar este destinatario? Se sacará de los switches que lo tengan.")) return;
+  if (!confirm(t("recipients.confirm_remove"))) return;
   const switches = getSwitches();
   switches.forEach((s) => {
     if (s.recipients.includes(id)) {
@@ -133,7 +138,7 @@ function removeRecipient(id) {
   });
   deleteRecipient(id);
   render();
-  showToast("Destinatario eliminado");
+  showToast(t("recipients.toast_removed"));
 }
 
 render();

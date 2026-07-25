@@ -8,7 +8,23 @@ document.addEventListener("DOMContentLoaded", () => {
       if (a.dataset.nav === page) a.classList.add("active");
     });
   }
+
+  applyStaticTranslations();
 });
+
+// Traduce el markup estático (nav, aria-labels, títulos fijos) declarado con
+// data-i18n / data-i18n-attr. El contenido armado por JS se traduce en cada render().
+function applyStaticTranslations() {
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-attr]").forEach((el) => {
+    el.dataset.i18nAttr.split(";").forEach((pair) => {
+      const [attr, key] = pair.split(":").map((s) => s.trim());
+      if (attr && key) el.setAttribute(attr, t(key));
+    });
+  });
+}
 
 let toastTimer = null;
 function showToast(msg, ms = 2600) {
@@ -38,28 +54,32 @@ function getParam(name) {
 function statusMeta(status) {
   switch (status) {
     case "active":
-      return { label: "Activo", dot: "dot-green", badge: "badge-green" };
+      return { label: t("status.active"), dot: "dot-green", badge: "badge-green" };
     case "grace":
-      return { label: "En gracia — sin confirmar", dot: "dot-yellow", badge: "badge-yellow" };
+      return { label: t("status.grace"), dot: "dot-yellow", badge: "badge-yellow" };
     case "alarm":
-      return { label: "¡Venció! Alarma en curso", dot: "dot-red", badge: "badge-red" };
+      return { label: t("status.alarm"), dot: "dot-red", badge: "badge-red" };
     case "triggered":
-      return { label: "Alerta enviada", dot: "dot-red", badge: "badge-red" };
+      return { label: t("status.triggered"), dot: "dot-red", badge: "badge-red" };
     case "off":
-      return { label: "Apagado", dot: "dot-gray", badge: "badge-gray" };
+      return { label: t("status.off"), dot: "dot-gray", badge: "badge-gray" };
     default:
       return { label: status, dot: "dot-gray", badge: "badge-gray" };
   }
 }
 
+function modeLabel(mode) {
+  return mode === "legado" ? t("common.mode_legado") : t("common.mode_cuidame");
+}
+
 function recipientStatusMeta(status) {
   switch (status) {
     case "confirmed":
-      return { label: "Confirmado", icon: "🟢", badge: "badge-green" };
+      return { label: t("recipient_status.confirmed"), icon: "🟢", badge: "badge-green" };
     case "pending":
-      return { label: "Pendiente", icon: "🟡", badge: "badge-yellow" };
+      return { label: t("recipient_status.pending"), icon: "🟡", badge: "badge-yellow" };
     case "rejected":
-      return { label: "Rechazó / no respondió", icon: "🔴", badge: "badge-red" };
+      return { label: t("recipient_status.rejected"), icon: "🔴", badge: "badge-red" };
     default:
       return { label: status, icon: "⚪", badge: "badge-gray" };
   }

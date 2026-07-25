@@ -5,10 +5,9 @@ const editId = getParam("id");
 let mode = getParam("mode") || (editId && getSwitch(editId) ? getSwitch(editId).mode : "legado");
 let working = null; // objeto de trabajo (no persiste hasta Guardar)
 
-const DEFAULT_MESSAGE = {
-  legado: "Estoy bien, no se preocupen. Si reciben esto es porque no pude confirmar a tiempo.",
-  sesion: "No confirmé mi check-in a tiempo. Esta es mi última ubicación conocida.",
-};
+function defaultMessage(m) {
+  return m === "legado" ? t("configure.default_message_legado") : t("configure.default_message_cuidame");
+}
 
 function initWorking() {
   if (!isNew && editId) {
@@ -23,14 +22,14 @@ function initWorking() {
   working = {
     id: "s" + Math.random().toString(36).slice(2, 8),
     mode,
-    name: mode === "legado" ? "Mi chequeo" : "Mi sesión",
+    name: mode === "legado" ? t("configure.default_name_legado") : t("configure.default_name_cuidame"),
     intervalMs: mode === "legado" ? 7 * DAY : 90 * MIN,
     graceMs: 24 * HOUR,
     alarmMs: 90 * 1000,
     nextDue: Date.now() + (mode === "legado" ? 7 * DAY : 90 * MIN),
     recipients: [],
     verifierId: null,
-    message: DEFAULT_MESSAGE[mode],
+    message: defaultMessage(mode),
     channels: mode === "legado" ? { email: true, sms: false, call: false } : { email: true, sms: true, call: false },
     location: mode === "sesion",
     off: false,
@@ -52,37 +51,37 @@ function numberUnitToInterval(n, unit) {
 }
 
 function render() {
-  qs("#header-title").textContent = isNew ? "Configurar switch" : `Editar · ${working.name}`;
+  qs("#header-title").textContent = isNew ? t("configure.title") : `${t("configure.editing")} · ${working.name}`;
   qs("#back-link").href = isNew ? "create-switch.html" : `checkin.html?id=${working.id}`;
 
   const recipients = getRecipients();
   const iv = intervalToNumberUnit(working.intervalMs);
   const unitOptions = mode === "legado"
-    ? [["days", "días"], ["weeks", "semanas"]]
-    : [["minutes", "minutos"], ["hours", "horas"]];
+    ? [["days", t("configure.unit_days")], ["weeks", t("configure.unit_weeks")]]
+    : [["minutes", t("configure.unit_minutes")], ["hours", t("configure.unit_hours")]];
 
   qs("#main").innerHTML = `
-    <p class="eyebrow">${isNew ? "Paso 2 de 2" : "Editando"} · ${mode === "legado" ? "Modo Legado" : "Modo Sesión"}</p>
+    <p class="eyebrow">${isNew ? t("configure.step2") : t("configure.editing")} · ${modeLabel(mode)}</p>
 
     <div class="field">
-      <label for="f-name">Nombre del switch</label>
-      <input class="input" id="f-name" value="${escapeHtml(working.name)}" placeholder="Ej: Chequeo semanal" />
+      <label for="f-name">${t("configure.name_label")}</label>
+      <input class="input" id="f-name" value="${escapeHtml(working.name)}" placeholder="${t("configure.name_placeholder")}" />
     </div>
 
     <div class="field">
-      <label>Intervalo de check-in</label>
+      <label>${t("configure.interval_label")}</label>
       <div class="flex gap-8">
         <input class="input" style="flex:1;" type="number" min="1" id="f-interval-n" value="${iv.n}" />
         <select class="select" style="flex:1;" id="f-interval-unit">
           ${unitOptions.map(([v, l]) => `<option value="${v}" ${v === iv.unit ? "selected" : ""}>${l}</option>`).join("")}
         </select>
       </div>
-      <p class="hint">Cada cuánto te vamos a pedir que confirmes que estás bien.</p>
+      <p class="hint">${t("configure.interval_hint")}</p>
     </div>
 
     <div class="field">
-      <label>Destinatarios</label>
-      ${recipients.length === 0 ? `<p class="text-sm muted">Todavía no tenés destinatarios. <a href="recipients.html">Agregá uno primero →</a></p>` : `
+      <label>${t("configure.recipients_label")}</label>
+      ${recipients.length === 0 ? `<p class="text-sm muted">${t("configure.no_recipients")} <a href="recipients.html">${t("configure.add_first")}</a></p>` : `
       <div class="card" style="padding:6px 14px;">
         ${recipients.map((r) => `
           <label class="checkbox-row">
@@ -93,39 +92,39 @@ function render() {
           </label>
         `).join("")}
       </div>`}
-      <p class="hint"><a href="recipients.html">Gestionar destinatarios →</a></p>
+      <p class="hint"><a href="recipients.html">${t("common.manage_recipients")}</a></p>
     </div>
 
     ${mode === "legado" ? `
     <div class="field" id="verifier-field">
-      <label>Verificador</label>
+      <label>${t("configure.verifier_label")}</label>
       <select class="select" id="f-verifier">
-        <option value="">Sin verificador (no recomendado)</option>
+        <option value="">${t("configure.no_verifier")}</option>
         ${working.recipients.map((id) => getRecipient(id)).filter(Boolean).map((r) => `
           <option value="${r.id}" ${working.verifierId === r.id ? "selected" : ""}>${r.name}</option>
         `).join("")}
       </select>
-      <p class="hint">Antes de avisar a todos, le preguntamos a esta persona si sabe algo de vos. Ayuda a evitar falsas alarmas.</p>
+      <p class="hint">${t("configure.verifier_hint")}</p>
     </div>` : ""}
 
     <div class="field">
-      <label for="f-message">Mensaje que se envía</label>
+      <label for="f-message">${t("configure.message_label")}</label>
       <textarea class="textarea" id="f-message">${escapeHtml(working.message)}</textarea>
     </div>
 
     <div class="field">
-      <label>Canal de aviso</label>
-      <label class="checkbox-row"><input type="checkbox" checked disabled /> <span class="flex-1">Email</span> <span class="badge badge-gray">Siempre activo</span></label>
+      <label>${t("configure.channel_label")}</label>
+      <label class="checkbox-row"><input type="checkbox" checked disabled /> <span class="flex-1">${t("common.email")}</span> <span class="badge badge-gray">${t("common.always_on")}</span></label>
       ${mode === "sesion" ? `
-        <label class="checkbox-row"><input type="checkbox" id="f-sms" ${working.channels.sms ? "checked" : ""} /> <span class="flex-1">SMS</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="f-call" ${working.channels.call ? "checked" : ""} /> <span class="flex-1">Llamada automática</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="f-sms" ${working.channels.sms ? "checked" : ""} /> <span class="flex-1">${t("common.sms")}</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="f-call" ${working.channels.call ? "checked" : ""} /> <span class="flex-1">${t("common.call")}</span></label>
       ` : ""}
     </div>
 
     ${mode === "sesion" ? `
     <div class="field">
       <div class="checkbox-row" style="border-bottom:none;">
-        <span class="flex-1"><label for="f-location" style="margin:0;">Compartir ubicación en el aviso</label></span>
+        <span class="flex-1"><label for="f-location" style="margin:0;">${t("configure.location_label")}</label></span>
         <span class="toggle"><input type="checkbox" id="f-location" ${working.location ? "checked" : ""} /><span class="track"></span></span>
       </div>
     </div>` : ""}
@@ -135,8 +134,8 @@ function render() {
         <div class="card-row">
           <span style="font-size:20px;">⏱️</span>
           <div class="flex-1">
-            <div style="font-weight:700; font-size:14px;">Escalamiento</div>
-            <div class="text-sm muted">Guardá el switch primero — después podés ajustar ${mode === "legado" ? "el período de gracia y los recordatorios" : "la duración de la alarma final"}.</div>
+            <div style="font-weight:700; font-size:14px;">${t("configure.escalation_title")}</div>
+            <div class="text-sm muted">${t("configure.escalation_new_hint", { what: mode === "legado" ? t("configure.escalation_what_legado") : t("configure.escalation_what_cuidame") })}</div>
           </div>
         </div>
       </div>
@@ -145,23 +144,23 @@ function render() {
         <div class="card-row">
           <span style="font-size:20px;">⏱️</span>
           <div class="flex-1">
-            <div style="font-weight:700; font-size:14px;">Escalamiento</div>
-            <div class="text-sm muted">${mode === "legado" ? "Período de gracia y recordatorios" : "Duración de la alarma final"}</div>
+            <div style="font-weight:700; font-size:14px;">${t("configure.escalation_title")}</div>
+            <div class="text-sm muted">${mode === "legado" ? t("configure.escalation_hint_legado") : t("configure.escalation_hint_cuidame")}</div>
           </div>
           <span class="muted">›</span>
         </div>
       </a>
     `}
 
-    <button class="btn btn-primary mt-16" id="save-btn">Guardar switch</button>
+    <button class="btn btn-primary mt-16" id="save-btn">${t("configure.save_btn")}</button>
 
     ${!isNew ? `
-    <div class="section-title" style="color:var(--color-red);">Zona crítica</div>
+    <div class="section-title" style="color:var(--color-red);">${t("configure.critical_zone")}</div>
     <div class="demo-banner" style="border-color:var(--color-red); color:var(--color-red); background:var(--color-red-bg);">
-      Apagar o borrar un switch requiere confirmación extra a propósito — para que no sea algo que se haga "sin querer" o bajo presión.
+      ${t("configure.critical_zone_note")}
     </div>
     <button class="btn btn-outline mt-8" id="off-btn" style="border-color:var(--color-red); color:var(--color-red);">
-      ${working.off ? "Reactivar switch" : "Apagar switch"}
+      ${working.off ? t("configure.turn_on") : t("configure.turn_off")}
     </button>
     ` : ""}
   `;
@@ -205,24 +204,22 @@ function syncFormToWorking() {
 }
 
 function toggleOff() {
-  const msg = working.off
-    ? "¿Reactivar este switch?"
-    : "Vas a apagar este switch: no se va a avisar a nadie hasta que lo reactives.\n\nEscribí OK para confirmar.";
+  const msg = working.off ? t("configure.confirm_turn_on") : t("configure.confirm_turn_off");
   if (working.off) {
     if (!confirm(msg)) return;
     working.off = false;
   } else {
     const typed = prompt(msg);
     if (typed !== "OK" && typed !== "ok") {
-      showToast("Cambio cancelado");
+      showToast(t("configure.toast_change_cancelled"));
       return;
     }
     working.off = true;
   }
   saveSwitch(working);
-  addHistory({ switchId: working.id, type: "config", note: working.off ? "Switch apagado" : "Switch reactivado" });
+  addHistory({ switchId: working.id, type: "config", note: working.off ? t("configure.history_off") : t("configure.history_on") });
   render();
-  showToast(working.off ? "Switch apagado" : "Switch reactivado");
+  showToast(working.off ? t("configure.toast_off") : t("configure.toast_on"));
 }
 
 function save() {
@@ -250,11 +247,11 @@ function save() {
   }
 
   if (working.recipients.length === 0) {
-    if (!confirm("No elegiste ningún destinatario todavía. ¿Guardar igual?")) return;
+    if (!confirm(t("configure.confirm_no_recipients"))) return;
   }
 
   saveSwitch(working);
-  addHistory({ switchId: working.id, type: isNew ? "created" : "config", note: isNew ? "Switch creado" : "Configuración actualizada" });
+  addHistory({ switchId: working.id, type: isNew ? "created" : "config", note: isNew ? t("configure.history_created") : t("configure.history_updated") });
   location.href = `checkin.html?id=${working.id}`;
 }
 

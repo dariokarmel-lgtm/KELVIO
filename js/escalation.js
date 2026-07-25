@@ -3,41 +3,43 @@
 const escId = getParam("id");
 let sw = getSwitch(escId);
 
-const DEFAULT_REMINDERS_LEGADO = [
-  { id: "push", label: "Notificación push inmediata al vencer", enabled: true },
-  { id: "sms6", label: "SMS de recordatorio a las 6 horas", enabled: true },
-  { id: "call12", label: "Llamada automática a las 12 horas", enabled: false },
-  { id: "email20", label: "Email urgente a las 20 horas", enabled: true },
-];
+function defaultRemindersLegado() {
+  return [
+    { id: "push", label: t("escalation.reminder_push"), enabled: true },
+    { id: "sms6", label: t("escalation.reminder_sms6"), enabled: true },
+    { id: "call12", label: t("escalation.reminder_call12"), enabled: false },
+    { id: "email20", label: t("escalation.reminder_email20"), enabled: true },
+  ];
+}
 
 function ensureDefaults() {
   if (!sw) return;
-  if (sw.mode === "legado" && !sw.reminders) sw.reminders = JSON.parse(JSON.stringify(DEFAULT_REMINDERS_LEGADO));
+  if (sw.mode === "legado" && !sw.reminders) sw.reminders = defaultRemindersLegado();
   if (sw.mode === "sesion" && sw.panicVisible === undefined) sw.panicVisible = true;
 }
 
 function render() {
   if (!sw) {
-    qs("#main").innerHTML = `<div class="empty-state"><span class="icon">🛟</span><p>Switch no encontrado.</p></div>`;
+    qs("#main").innerHTML = `<div class="empty-state"><span class="icon">🛟</span><p>${t("common.switch_not_found")}</p></div>`;
     return;
   }
   qs("#back-link").href = `configure-switch.html?id=${sw.id}`;
 
   if (sw.mode === "legado") {
     qs("#main").innerHTML = `
-      <p class="eyebrow">${sw.name} · Modo Legado</p>
-      <p class="text-sm muted">En Modo Legado priorizamos evitar falsas alarmas: hay tiempo y recordatorios escalados antes de avisar de verdad.</p>
+      <p class="eyebrow">${sw.name} · ${t("common.mode_legado")}</p>
+      <p class="text-sm muted">${t("escalation.legado_intro")}</p>
 
       <div class="field mt-16">
-        <label>Período de gracia</label>
+        <label>${t("escalation.grace_label")}</label>
         <select class="select" id="f-grace">
-          <option value="${24 * HOUR}" ${sw.graceMs === 24 * HOUR ? "selected" : ""}>24 horas</option>
-          <option value="${48 * HOUR}" ${sw.graceMs === 48 * HOUR ? "selected" : ""}>48 horas</option>
+          <option value="${24 * HOUR}" ${sw.graceMs === 24 * HOUR ? "selected" : ""}>${t("escalation.hours_24")}</option>
+          <option value="${48 * HOUR}" ${sw.graceMs === 48 * HOUR ? "selected" : ""}>${t("escalation.hours_48")}</option>
         </select>
-        <p class="hint">Tiempo desde que vence el check-in hasta que se envía el aviso final.</p>
+        <p class="hint">${t("escalation.grace_hint")}</p>
       </div>
 
-      <div class="section-title">Recordatorios durante la gracia</div>
+      <div class="section-title">${t("escalation.reminders_title")}</div>
       <div class="card" style="padding:6px 14px;">
         ${sw.reminders.map((r) => `
           <div class="checkbox-row">
@@ -47,30 +49,30 @@ function render() {
         `).join("")}
       </div>
 
-      <button class="btn btn-primary mt-16" id="save-btn">Guardar</button>
+      <button class="btn btn-primary mt-16" id="save-btn">${t("common.save")}</button>
     `;
   } else {
     qs("#main").innerHTML = `
-      <p class="eyebrow">${sw.name} · Modo Sesión</p>
-      <p class="text-sm muted">En Modo Sesión priorizamos velocidad: preferimos una falsa alarma antes que llegar tarde.</p>
+      <p class="eyebrow">${sw.name} · ${t("common.mode_cuidame")}</p>
+      <p class="text-sm muted">${t("escalation.cuidame_intro")}</p>
 
       <div class="field mt-16">
-        <label>Duración de la alarma final</label>
+        <label>${t("escalation.alarm_duration_label")}</label>
         <select class="select" id="f-alarm">
-          <option value="60000" ${sw.alarmMs === 60000 ? "selected" : ""}>60 segundos</option>
-          <option value="90000" ${sw.alarmMs === 90000 ? "selected" : ""}>90 segundos</option>
-          <option value="120000" ${sw.alarmMs === 120000 ? "selected" : ""}>120 segundos</option>
+          <option value="60000" ${sw.alarmMs === 60000 ? "selected" : ""}>${t("escalation.seconds_60")}</option>
+          <option value="90000" ${sw.alarmMs === 90000 ? "selected" : ""}>${t("escalation.seconds_90")}</option>
+          <option value="120000" ${sw.alarmMs === 120000 ? "selected" : ""}>${t("escalation.seconds_120")}</option>
         </select>
-        <p class="hint">Cuando vence el check-in, tenés esta ventana para cancelar antes de que se envíe el aviso.</p>
+        <p class="hint">${t("escalation.alarm_duration_hint")}</p>
       </div>
 
       <div class="checkbox-row">
-        <span class="flex-1"><label style="margin:0;">Botón de pánico visible en la pantalla de check-in</label></span>
+        <span class="flex-1"><label style="margin:0;">${t("escalation.panic_visible_label")}</label></span>
         <span class="toggle"><input type="checkbox" id="f-panic" ${sw.panicVisible ? "checked" : ""} /><span class="track"></span></span>
       </div>
-      <p class="hint mt-8">Deja avisar al instante, sin esperar a que venza el contador.</p>
+      <p class="hint mt-8">${t("escalation.panic_visible_hint")}</p>
 
-      <button class="btn btn-primary mt-16" id="save-btn">Guardar</button>
+      <button class="btn btn-primary mt-16" id="save-btn">${t("common.save")}</button>
     `;
   }
 
@@ -89,8 +91,8 @@ function save() {
     sw.panicVisible = qs("#f-panic").checked;
   }
   saveSwitch(sw);
-  addHistory({ switchId: sw.id, type: "config", note: "Escalamiento actualizado" });
-  showToast("Escalamiento guardado");
+  addHistory({ switchId: sw.id, type: "config", note: t("escalation.history_updated") });
+  showToast(t("escalation.toast_saved"));
   location.href = `configure-switch.html?id=${sw.id}`;
 }
 

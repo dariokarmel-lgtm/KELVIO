@@ -22,12 +22,22 @@ history.html             ← Historial de actividad
 test-mode.html           ← Modo Prueba (simula un disparo sin enviar nada real)
 settings.html            ← Cuenta, biometría, duress code
 css/style.css            ← Estilos compartidos
+js/i18n.js               ← Diccionario + motor de traducciones (10 idiomas)
 js/data.js               ← Capa de datos (localStorage)
 js/app.js                ← Helpers compartidos
 js/*.js                  ← Lógica de cada pantalla
+img/                     ← Logo oficial (ícono, favicon, apple-touch-icon)
 ```
 
 Sin build step — lo que está acá se sube directo al hosting, igual que InstructorLog.
+
+## Multi-idioma
+
+10 idiomas: ES/EN/PT/FR/DE/HE/AR/HI/ZH/JA (hebreo y árabe con RTL). Selector en
+Ajustes, persiste en `localStorage`. Todo el texto de la UI vive como claves en
+`js/i18n.js` (`t("clave", {vars})`); el markup estático usa `data-i18n` /
+`data-i18n-attr`. Español e inglés están escritos y revisados a mano; el resto se generó
+con IA — conviene una revisión de hablantes nativos antes de un lanzamiento real.
 
 ## Deployment (demo estática)
 

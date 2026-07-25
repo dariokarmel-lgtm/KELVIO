@@ -170,3 +170,10 @@ de que el cambio se aplique.
       automáticas, duress code, modo verificador, historial).
 - [ ] Stack técnico concreto y arquitectura (a definir cuando se pase a código).
 - [x] Nombre de la app: **KALVIO** ("Safety switch & panic button"). Logo oficial en `img/`.
+- [x] En la UI, el **Modo Sesión** se llama **"MODO CUIDAME"** (equivalente por idioma:
+      "WATCH OVER ME MODE" en inglés, etc.) — el nombre conceptual "Modo Sesión" de este
+      documento sigue siendo el término interno/funcional.
+- [x] Multi-idioma: 10 idiomas (ES/EN/PT/FR/DE/HE/AR/HI/ZH/JA), con RTL para hebreo y
+      árabe. Motor de traducción en `js/i18n.js`, selector en Ajustes. Las traducciones a
+      PT/FR/DE/HE/AR/HI/ZH/JA se generaron con IA — conviene una revisión de hablantes
+      nativos antes de un lanzamiento real.
