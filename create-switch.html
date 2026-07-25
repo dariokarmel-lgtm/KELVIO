@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Nuevo switch</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="create">
+<div class="phone">
+  <header class="app-header with-border">
+    <a class="back-link" href="index.html" aria-label="Volver">←</a>
+    <div class="flex-1"><h1>Nuevo switch</h1></div>
+  </header>
+
+  <main class="app-main" id="main"></main>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+let selectedMode = null;
+
+function render() {
+  const db = loadDB();
+  const atFreeLimit = db.account.plan === "free" && db.switches.length >= 1;
+
+  qs("#main").innerHTML = `
+    <p class="eyebrow">Paso 1 de 2</p>
+    <h2 style="margin:0 0 4px;">¿Qué tipo de switch necesitás?</h2>
+    <p class="text-sm muted" style="margin:0 0 18px;">Elegí el modo según la situación. Podés crear otros switches después.</p>
+
+    ${atFreeLimit ? `
+      <div class="warn-banner">
+        💎 Tu plan gratuito incluye 1 switch. Ya tenés uno activo — para crear otro necesitás
+        <b>Pro</b>. <a href="#" onclick="event.preventDefault(); showToast('Pantalla de planes — pendiente de diseño')">Ver planes</a>.
+      </div>
+    ` : ""}
+
+    <button class="mode-card ${selectedMode === "legado" ? "selected" : ""}" onclick="pick('legado')">
+      <p class="mode-title">🕯️ Modo Legado</p>
+      <p class="mode-desc">Intervalo largo (días o semanas). Si no confirmás, avisamos por email — con un verificador de por medio para evitar falsas alarmas.</p>
+    </button>
+
+    <button class="mode-card ${selectedMode === "sesion" ? "selected" : ""}" onclick="pick('sesion')">
+      <p class="mode-title">📍 Modo Sesión</p>
+      <p class="mode-desc">Intervalo corto (minutos u horas), con ubicación. Ideal para viajes o citas. Si no confirmás, avisamos rápido por SMS, llamada o email.</p>
+    </button>
+
+    <button class="btn btn-primary mt-16" id="continue-btn" ${selectedMode ? "" : "disabled"}>Continuar</button>
+    ${atFreeLimit ? `<p class="text-sm muted text-center mt-8">Este prototipo te deja seguir igual, solo para probar el flujo.</p>` : ""}
+  `;
+
+  const cont = qs("#continue-btn");
+  if (cont) cont.onclick = () => {
+    if (!selectedMode) return;
+    location.href = `configure-switch.html?new=1&mode=${selectedMode}`;
+  };
+}
+
+function pick(mode) {
+  selectedMode = mode;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

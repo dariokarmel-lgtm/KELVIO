@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Inicio — Check-in (nombre pendiente)</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="home">
+<div class="phone">
+
+  <header class="app-header">
+    <div class="flex-1">
+      <h1>Check-in <span class="subtitle">(nombre pendiente)</span></h1>
+    </div>
+    <a class="gear-link" href="settings.html" aria-label="Ajustes">⚙️</a>
+  </header>
+
+  <main class="app-main" id="main"></main>
+
+  <button class="fab" title="Nuevo switch" onclick="location.href='create-switch.html'">+</button>
+
+  <nav class="bottom-nav">
+    <a data-nav="home" href="index.html"><span class="icon">🏠</span>Inicio</a>
+    <a data-nav="recipients" href="recipients.html"><span class="icon">👥</span>Destinatarios</a>
+    <a data-nav="history" href="history.html"><span class="icon">🕘</span>Historial</a>
+    <a data-nav="settings" href="settings.html"><span class="icon">⚙️</span>Ajustes</a>
+  </nav>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+function render() {
+  const switches = getSwitches();
+  const main = qs("#main");
+
+  if (switches.length === 0) {
+    main.innerHTML = `
+      <div class="empty-state">
+        <span class="icon">🛟</span>
+        <p>Todavía no tenés ningún switch activo.<br>Creá el primero para empezar.</p>
+        <a class="btn btn-primary" style="width:auto; display:inline-flex; margin-top:8px;" href="create-switch.html">+ Crear switch</a>
+      </div>`;
+    return;
+  }
+
+  main.innerHTML = `
+    <p class="eyebrow">Tus switches</p>
+    ${switches.map(cardFor).join("")}
+    <div class="demo-banner" style="margin-top:18px;">
+      <strong>DEMO</strong> Los datos de este prototipo viven en tu navegador (localStorage). Podés
+      <a href="#" onclick="doReset(event)">reiniciar los datos de ejemplo</a> en cualquier momento.
+    </div>
+  `;
+}
+
+function cardFor(sw) {
+  const status = switchStatus(sw);
+  const meta = statusMeta(status);
+  const modeLabel = sw.mode === "legado" ? "Modo Legado" : "Modo Sesión";
+  const timeLabel = status === "off"
+    ? "Apagado"
+    : status === "triggered"
+      ? "Alerta ya enviada"
+      : (sw.nextDue > Date.now()
+          ? `Próximo check-in en ${formatDuration(sw.nextDue - Date.now())}`
+          : `Venció hace ${formatDuration(Date.now() - sw.nextDue)}`);
+
+  return `
+    <a class="card card-tap" href="checkin.html?id=${sw.id}">
+      <div class="card-row">
+        <span class="dot ${meta.dot}" style="width:12px;height:12px;"></span>
+        <div class="flex-1">
+          <div style="font-weight:700; font-size:15px;">${sw.name}</div>
+          <div class="text-sm muted">${timeLabel}</div>
+        </div>
+        <span class="badge badge-primary">${modeLabel}</span>
+      </div>
+    </a>
+  `;
+}
+
+function doReset(e) {
+  e.preventDefault();
+  if (confirm("¿Reiniciar todos los datos de ejemplo del prototipo?")) {
+    resetDB();
+    render();
+    showToast("Datos de ejemplo reiniciados");
+  }
+}
+
+render();
+</script>
+</body>
+</html>
