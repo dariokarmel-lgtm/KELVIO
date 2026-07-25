@@ -22,6 +22,8 @@
 
   <main class="app-main" id="main"></main>
 
+  <div class="panic-dock" id="panic-dock" style="display:none;"></div>
+
   <button class="fab" id="fab-new" title="" onclick="location.href='create-switch.html'">+</button>
 
   <nav class="bottom-nav">
@@ -39,23 +41,33 @@
 function render() {
   const switches = getSwitches();
   const main = qs("#main");
+  const dock = qs("#panic-dock");
+  const fab = qs("#fab-new");
   const activeSwitches = switches.filter((s) => !s.off);
 
-  qs("#fab-new").title = t("home.fab_new_switch");
-
-  let html = "";
+  fab.title = t("home.fab_new_switch");
 
   if (activeSwitches.length > 0) {
-    html += `
-      <div class="panic-wrap">
-        <button class="panic-round" id="panic-hero-btn">
-          <span class="panic-icon">🚨</span>
-          <span class="panic-label">${t("home.panic_title").toUpperCase()}</span>
-        </button>
+    dock.style.display = "flex";
+    main.classList.add("with-panic-dock");
+    fab.classList.add("fab-above-dock");
+    dock.innerHTML = `
+      <button class="panic-round" id="panic-hero-btn">
+        <span class="panic-icon">🚨</span>
+      </button>
+      <div class="panic-dock-text">
+        <p class="panic-title">${t("home.panic_title")}</p>
         <p class="panic-sub">${t("home.panic_sub")}</p>
       </div>
     `;
+    qs("#panic-hero-btn", dock).onclick = globalPanic;
+  } else {
+    dock.style.display = "none";
+    main.classList.remove("with-panic-dock");
+    fab.classList.remove("fab-above-dock");
   }
+
+  let html = "";
 
   html += `<div class="tab-row"><span class="tab-item">${t("home.tab_my_switches")}</span></div>`;
 
@@ -77,9 +89,6 @@ function render() {
   }
 
   main.innerHTML = html;
-
-  const panicBtn = qs("#panic-hero-btn");
-  if (panicBtn) panicBtn.onclick = globalPanic;
 }
 
 function globalPanic() {
