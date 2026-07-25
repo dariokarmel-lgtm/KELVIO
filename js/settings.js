@@ -43,10 +43,14 @@ function render() {
       <div class="checkbox-row" style="border-bottom:none;">
         <span class="flex-1">
           <label style="margin:0; display:block;">${t("settings.biometric_label")}</label>
-          <span class="hint" style="margin:2px 0 0;">${t("settings.biometric_hint")}</span>
+          <span class="hint" style="margin:2px 0 0;">${t("settings.biometric_hint")} ${t("settings.biometric_hint_extra")}</span>
         </span>
         <span class="toggle"><input type="checkbox" id="f-bio" ${acc.biometric ? "checked" : ""} /><span class="track"></span></span>
       </div>
+    </div>
+
+    <div class="card" id="access-code-card">
+      ${accessCodeHtml(acc)}
     </div>
 
     <div class="card" id="duress-card">
@@ -83,7 +87,54 @@ function render() {
     };
   });
 
+  wireAccessCode();
   wireDuress();
+}
+
+function accessCodeHtml(acc) {
+  if (!acc.securityCode) {
+    return `
+      <p style="font-weight:700; margin:0 0 4px;">${t("settings.access_code_title")}</p>
+      <p class="text-sm muted" style="margin:0 0 12px;">${t("settings.access_code_desc")}</p>
+      <button class="btn btn-secondary" id="access-code-set-btn">${t("settings.access_code_set_btn")}</button>
+    `;
+  }
+  return `
+    <p style="font-weight:700; margin:0 0 4px;">${t("settings.access_code_title")}</p>
+    <p class="text-sm muted" style="margin:0 0 12px;">${t("settings.access_code_current")}</p>
+    <div class="flex gap-8">
+      <button class="btn btn-outline btn-sm" style="width:auto;" id="access-code-change-btn">${t("settings.access_code_change_btn")}</button>
+      <button class="btn btn-ghost btn-sm" style="width:auto; color:var(--color-red);" id="access-code-remove-btn">${t("settings.access_code_remove_btn")}</button>
+    </div>
+  `;
+}
+
+function wireAccessCode() {
+  const setup = (title) => {
+    const code = prompt(title);
+    if (!code) return;
+    const acc = getAccount();
+    acc.securityCode = code;
+    saveAccount(acc);
+    render();
+    showToast(t("settings.access_code_toast_saved"));
+  };
+
+  const setBtn = qs("#access-code-set-btn");
+  if (setBtn) setBtn.onclick = () => setup(t("settings.access_code_prompt_new"));
+
+  const changeBtn = qs("#access-code-change-btn");
+  if (changeBtn) changeBtn.onclick = () => setup(t("settings.access_code_prompt_new"));
+
+  const removeBtn = qs("#access-code-remove-btn");
+  if (removeBtn) removeBtn.onclick = () => {
+    if (!confirm(t("settings.access_code_confirm_remove"))) return;
+    const acc = getAccount();
+    acc.securityCode = null;
+    saveAccount(acc);
+    render();
+    showToast(t("settings.access_code_toast_removed"));
+  };
 }
 
 function duressHtml(acc) {

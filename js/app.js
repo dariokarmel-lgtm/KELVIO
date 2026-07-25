@@ -94,3 +94,44 @@ function initials(name) {
     .map((ch) => ch.toUpperCase())
     .join("");
 }
+
+/*
+ * Gate de autenticación para entrar a configuración crítica (destinatarios,
+ * intervalo, apagar el switch). Biometría si está activada; si no, PIN.
+ * Si el usuario no configuró ninguna de las dos, caemos a una confirmación
+ * simple para no bloquear el prototipo.
+ */
+function requireCriticalAuth(onSuccess) {
+  const acc = getAccount();
+  if (acc.biometric) {
+    showBiometricModal(onSuccess);
+  } else if (acc.securityCode) {
+    const typed = prompt(t("auth.enter_code"));
+    if (typed == null) return;
+    if (typed === acc.securityCode) onSuccess();
+    else showToast(t("auth.wrong_code"));
+  } else if (confirm(t("checkin.gear_confirm"))) {
+    onSuccess();
+  }
+}
+
+function showBiometricModal(onSuccess) {
+  const wrap = document.createElement("div");
+  wrap.className = "auth-modal-wrap";
+  wrap.innerHTML = `
+    <div class="auth-modal">
+      <div class="auth-modal-icon">👆</div>
+      <h2>${t("auth.biometric_title")}</h2>
+      <p>${t("auth.biometric_desc")}</p>
+      <button class="btn btn-primary" id="auth-confirm-btn">${t("auth.biometric_confirm_btn")}</button>
+      <button class="btn btn-ghost" id="auth-cancel-btn">${t("auth.biometric_cancel_btn")}</button>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  qs("#auth-confirm-btn", wrap).onclick = () => {
+    close();
+    onSuccess();
+  };
+  qs("#auth-cancel-btn", wrap).onclick = close;
+}

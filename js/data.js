@@ -18,6 +18,7 @@ function seedDB() {
       phone: "+54 9 11 5555-0100",
       email: "dario@example.com",
       biometric: false,
+      securityCode: null, // PIN para entrar a configuración crítica (si no hay biometría)
       plan: "free",
       duress: { status: "none" }, // none | step1 | confirmed
     },

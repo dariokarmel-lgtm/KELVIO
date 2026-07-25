@@ -37,8 +37,9 @@ function ringStyle(sw, status) {
 
 function gearHandler(e) {
   e.preventDefault();
-  const ok = confirm(t("checkin.gear_confirm"));
-  if (ok) location.href = `configure-switch.html?id=${CURRENT_SWITCH_ID}`;
+  requireCriticalAuth(() => {
+    location.href = `configure-switch.html?id=${CURRENT_SWITCH_ID}`;
+  });
 }
 
 function render() {

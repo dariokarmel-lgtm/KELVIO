@@ -715,6 +715,34 @@ button, input, select, textarea { font-family: inherit; }
   color: var(--color-primary);
 }
 
+/* ---------- Modal de autenticación (biometría) ---------- */
+.auth-modal-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(10, 12, 18, .55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.auth-modal {
+  width: 100%;
+  max-width: 340px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 28px 22px;
+  text-align: center;
+}
+.auth-modal-icon {
+  font-size: 46px;
+  margin-bottom: 6px;
+}
+.auth-modal h2 { font-size: 18px; margin: 4px 0 6px; }
+.auth-modal p { font-size: 13.5px; color: var(--color-text-muted); margin: 0 0 18px; line-height: 1.4; }
+.auth-modal .btn { margin-top: 8px; }
+
 /* ---------- RTL (Hebreo / Árabe) ---------- */
 html[dir="rtl"] .back-link { transform: scaleX(-1); }
 html[dir="rtl"] .gear-link.home-gear { inset-inline-end: 20px; }
