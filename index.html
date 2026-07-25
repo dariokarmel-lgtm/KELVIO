@@ -37,25 +37,69 @@
 function render() {
   const switches = getSwitches();
   const main = qs("#main");
+  const activeSwitches = switches.filter((s) => !s.off);
+
+  let html = "";
+
+  if (activeSwitches.length > 0) {
+    html += `
+      <button class="panic-hero" id="panic-hero-btn">
+        <span class="panic-icon">🚨</span>
+        <span>
+          <p class="panic-title">Botón de pánico</p>
+          <p class="panic-sub">Avisa ya a tus contactos en todos tus switches activos, sin esperar</p>
+        </span>
+      </button>
+    `;
+  }
+
+  html += `<div class="tab-row"><span class="tab-item">🛟 Mis switches</span></div>`;
 
   if (switches.length === 0) {
-    main.innerHTML = `
+    html += `
       <div class="empty-state">
         <span class="icon">🛟</span>
         <p>Todavía no tenés ningún switch activo.<br>Creá el primero para empezar.</p>
         <a class="btn btn-primary" style="width:auto; display:inline-flex; margin-top:8px;" href="create-switch.html">+ Crear switch</a>
       </div>`;
-    return;
+  } else {
+    html += switches.map(cardFor).join("");
+    html += `
+      <div class="demo-banner" style="margin-top:18px;">
+        <strong>DEMO</strong> Los datos de este prototipo viven en tu navegador (localStorage). Podés
+        <a href="#" onclick="doReset(event)">reiniciar los datos de ejemplo</a> en cualquier momento.
+      </div>
+    `;
   }
 
-  main.innerHTML = `
-    <p class="eyebrow">Tus switches</p>
-    ${switches.map(cardFor).join("")}
-    <div class="demo-banner" style="margin-top:18px;">
-      <strong>DEMO</strong> Los datos de este prototipo viven en tu navegador (localStorage). Podés
-      <a href="#" onclick="doReset(event)">reiniciar los datos de ejemplo</a> en cualquier momento.
-    </div>
-  `;
+  main.innerHTML = html;
+
+  const panicBtn = qs("#panic-hero-btn");
+  if (panicBtn) panicBtn.onclick = globalPanic;
+}
+
+function globalPanic() {
+  const active = getSwitches().filter((s) => !s.off && switchStatus(s) !== "triggered");
+  if (active.length === 0) {
+    showToast("No tenés switches activos para avisar");
+    return;
+  }
+  const label = active.length === 1 ? `"${active[0].name}"` : `tus ${active.length} switches activos`;
+  const ok = confirm(
+    `¿Avisar a tus contactos AHORA en ${label}?\n\nSe salta cualquier espera y dispara la alerta ya. ` +
+    `(Prototipo: no se envía nada real.)`
+  );
+  if (!ok) return;
+
+  active.forEach((sw) => {
+    const windowMs = sw.mode === "legado" ? (sw.graceMs || 24 * HOUR) : (sw.alarmMs || 90000);
+    sw.nextDue = Date.now() - (windowMs + 1000);
+    saveSwitch(sw);
+    addHistory({ switchId: sw.id, type: "trigger_manual", note: "Botón de pánico activado desde Inicio" });
+  });
+
+  render();
+  showToast("Alerta enviada a tus contactos (simulado)");
 }
 
 function cardFor(sw) {
