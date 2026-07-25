@@ -1,4 +1,4 @@
-# [Nombre pendiente] — App de Check-in / Dead Man's Switch
+# KALVIO — App de Check-in / Dead Man's Switch
 > Este archivo es el contexto de producto para trabajar en este proyecto con Claude Code.
 > Contiene las decisiones de concepto y UX ya tomadas. Todavía NO hay código ni stack
 > técnico definitivo — eso se decide en la siguiente etapa.
@@ -169,4 +169,4 @@ de que el cambio se aplique.
 - [ ] Alcance del MVP — qué queda afuera de la v1 (candidatos a cortar: llamadas
       automáticas, duress code, modo verificador, historial).
 - [ ] Stack técnico concreto y arquitectura (a definir cuando se pase a código).
-- [ ] Nombre de la app.
+- [x] Nombre de la app: **KALVIO** ("Safety switch & panic button"). Logo oficial en `img/`.

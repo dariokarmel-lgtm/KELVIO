@@ -1,4 +1,4 @@
-# Check-in (nombre pendiente)
+# KALVIO
 
 Prototipo estático de la app de check-in / dead man's switch. Ver [CLAUDE.md](CLAUDE.md)
 para el contexto de producto completo.
@@ -31,12 +31,10 @@ Sin build step — lo que está acá se sube directo al hosting, igual que Instr
 
 ## Deployment (demo estática)
 
-Pensado para Netlify, igual que InstructorLog:
+Ya está online: **https://kelvioapp.netlify.app** (repo GitHub: `dariokarmel-lgtm/KELVIO`).
 
-1. Crear un repo en GitHub y pushear esta carpeta.
-2. En Netlify → **Add new site → Import an existing project**, elegir el repo.
-3. Build settings: **Base directory** vacío · **Build command** vacío · **Publish directory** `.`
-4. Deploy. Cada `git push` a `main` va a redeployar solo.
+Conectado por Git, igual que InstructorLog — cada `git push` a `main` redeploya solo.
+Build settings: **Base directory** vacío · **Build command** vacío · **Publish directory** `.`
 
 Esto deja la demo online, pero sigue siendo solo un prototipo visual — no manda alertas
 reales. Para que funcione de verdad hace falta un backend (Supabase) y una función
