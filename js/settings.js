@@ -5,10 +5,12 @@ function render() {
 
   qs("#main").innerHTML = `
     <div class="section-title">${t("settings.language_section")}</div>
-    <div class="lang-grid" id="lang-grid">
-      ${Object.keys(LANGS).map((code) => `
-        <button class="lang-chip ${getLang() === code ? "selected" : ""}" data-lang="${code}">${LANGS[code].label}</button>
-      `).join("")}
+    <div class="field">
+      <select class="select" id="lang-select">
+        ${Object.keys(LANGS).map((code) => `
+          <option value="${code}" ${getLang() === code ? "selected" : ""}>${LANGS[code].label}</option>
+        `).join("")}
+      </select>
     </div>
 
     <div class="section-title">${t("settings.account_section")}</div>
@@ -79,13 +81,11 @@ function render() {
     showToast(acc.biometric ? t("settings.toast_bio_on") : t("settings.toast_bio_off"));
   };
 
-  qsa("#lang-grid .lang-chip").forEach((btn) => {
-    btn.onclick = () => {
-      setLang(btn.dataset.lang);
-      render();
-      applyStaticTranslations();
-    };
-  });
+  qs("#lang-select").onchange = (e) => {
+    setLang(e.target.value);
+    render();
+    applyStaticTranslations();
+  };
 
   wireAccessCode();
   wireDuress();
