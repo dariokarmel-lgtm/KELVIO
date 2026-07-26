@@ -175,9 +175,13 @@ button, input, select, textarea { font-family: inherit; }
 
 /* ---------- Bottom nav ---------- */
 .bottom-nav {
-  position: sticky;
+  position: fixed;
+  left: 50%;
   bottom: 0;
-  z-index: 6;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  z-index: 8;
   display: flex;
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
@@ -243,9 +247,13 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .panic-dock {
-  position: sticky;
+  position: fixed;
+  left: 50%;
   bottom: var(--nav-h);
-  z-index: 6;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  z-index: 7;
   height: var(--panic-dock-h);
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
@@ -753,3 +761,15 @@ html[dir="rtl"] .checkbox-row,
 html[dir="rtl"] .radio-row { text-align: start; }
 html[dir="rtl"] .btn .icon,
 html[dir="rtl"] .card-tap .muted { direction: rtl; }
+
+/* ---------- Preview de escritorio: alinear elementos fijos con la tarjeta ----------
+   Los elementos de abajo (nav, dock de pánico, fab) quedan fijos al viewport para
+   estar siempre visibles en el celular real. En el preview de escritorio el body
+   tiene padding decorativo alrededor de la tarjeta — sin este ajuste, esos elementos
+   quedarían pegados al borde de la ventana en vez del borde de la tarjeta. */
+@media (min-width: 431px) {
+  .bottom-nav { bottom: 24px; border-radius: 0 0 32px 32px; }
+  .panic-dock { bottom: calc(var(--nav-h) + 24px); }
+  .fab.fab-above-dock { bottom: calc(var(--nav-h) + var(--panic-dock-h) + 18px + 24px); }
+  .fab:not(.fab-above-dock) { bottom: calc(var(--nav-h) + 18px + 24px); }
+}
