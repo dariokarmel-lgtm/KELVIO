@@ -19,8 +19,15 @@ function typeMeta(type) {
 function render() {
   const switches = getSwitches();
   const entries = getHistory(filterSwitch === "all" ? null : filterSwitch);
+  const attention = switches.filter((s) => switchStatus(s) !== "active");
 
   qs("#main").innerHTML = `
+    ${attention.length > 0 ? `
+      <div class="tab-row"><span class="tab-item" style="background:var(--color-red);">⚠️ ${t("history.attention_title")}</span></div>
+      ${attention.map(attentionCardFor).join("")}
+      <div class="section-title">${t("history.activity_title")}</div>
+    ` : ""}
+
     <div class="field">
       <select class="select" id="f-filter">
         <option value="all" ${filterSwitch === "all" ? "selected" : ""}>${t("history.filter_all")}</option>
@@ -40,6 +47,23 @@ function render() {
     filterSwitch = e.target.value;
     render();
   };
+}
+
+function attentionCardFor(sw) {
+  const status = switchStatus(sw);
+  const meta = statusMeta(status);
+  return `
+    <a class="card card-tap" href="checkin.html?id=${sw.id}">
+      <div class="card-row">
+        <span class="dot ${meta.dot}" style="width:12px;height:12px;"></span>
+        <div class="flex-1">
+          <div style="font-weight:700; font-size:15px;">${sw.name}</div>
+          <div class="text-sm muted">${meta.label}</div>
+        </div>
+        <span class="badge badge-primary">${modeLabel(sw.mode)}</span>
+      </div>
+    </a>
+  `;
 }
 
 function rowHtml(h) {

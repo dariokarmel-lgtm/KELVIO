@@ -43,11 +43,12 @@ function render() {
   const main = qs("#main");
   const dock = qs("#panic-dock");
   const fab = qs("#fab-new");
-  const activeSwitches = switches.filter((s) => !s.off);
+  const notOffSwitches = switches.filter((s) => !s.off);
+  const activeSwitches = switches.filter((s) => switchStatus(s) === "active");
 
   fab.title = t("home.fab_new_switch");
 
-  if (activeSwitches.length > 0) {
+  if (notOffSwitches.length > 0) {
     dock.style.display = "flex";
     main.classList.add("with-panic-dock");
     fab.classList.add("fab-above-dock");
@@ -78,8 +79,15 @@ function render() {
         <p>${t("home.empty_line1")}<br>${t("home.empty_line2")}</p>
         <a class="btn btn-primary" style="width:auto; display:inline-flex; margin-top:8px;" href="create-switch.html">${t("common.create_switch_btn")}</a>
       </div>`;
+  } else if (activeSwitches.length === 0) {
+    html += `
+      <div class="empty-state">
+        <span class="icon">🕘</span>
+        <p>${t("home.no_active_title")}</p>
+        <a class="btn btn-secondary" style="width:auto; display:inline-flex; margin-top:8px;" href="history.html">${t("home.no_active_link")}</a>
+      </div>`;
   } else {
-    html += switches.map(cardFor).join("");
+    html += activeSwitches.map(cardFor).join("");
     html += `
       <div class="demo-banner" style="margin-top:18px;">
         <strong>${t("common.demo")}</strong> ${t("home.demo_text")}
@@ -114,15 +122,8 @@ function globalPanic() {
 }
 
 function cardFor(sw) {
-  const status = switchStatus(sw);
-  const meta = statusMeta(status);
-  const timeLabel = status === "off"
-    ? t("home.off")
-    : status === "triggered"
-      ? t("home.alert_sent")
-      : (sw.nextDue > Date.now()
-          ? t("home.next_checkin_in", { time: formatDuration(sw.nextDue - Date.now()) })
-          : t("home.overdue_since", { time: formatDuration(Date.now() - sw.nextDue) }));
+  const meta = statusMeta("active");
+  const timeLabel = t("home.next_checkin_in", { time: formatDuration(sw.nextDue - Date.now()) });
 
   return `
     <a class="card card-tap" href="checkin.html?id=${sw.id}">

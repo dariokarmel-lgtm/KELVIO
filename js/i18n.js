@@ -314,6 +314,10 @@ const DICT = {
     "settings.access_code_toast_saved": "Código de acceso guardado",
     "settings.access_code_toast_removed": "Código de acceso eliminado",
     "settings.biometric_hint_extra": "También se usa para entrar a la configuración crítica de un switch.",
+    "home.no_active_title": "No tienes switches activos en este momento.",
+    "home.no_active_link": "Ver en Historial →",
+    "history.attention_title": "Necesitan tu atención",
+    "history.activity_title": "Actividad",
   },
 
   en: {
@@ -611,6 +615,10 @@ const DICT = {
     "settings.access_code_toast_saved": "Access code saved",
     "settings.access_code_toast_removed": "Access code removed",
     "settings.biometric_hint_extra": "Also used to enter a switch's critical settings.",
+    "home.no_active_title": "You don't have any active switches right now.",
+    "home.no_active_link": "View in History →",
+    "history.attention_title": "Need your attention",
+    "history.activity_title": "Activity",
   },
 
   pt: {
@@ -893,6 +901,10 @@ const DICT = {
     "settings.access_code_toast_saved": "Código de acesso salvo",
     "settings.access_code_toast_removed": "Código de acesso removido",
     "settings.biometric_hint_extra": "Também é usado para entrar nas configurações críticas de um switch.",
+    "home.no_active_title": "Você não tem nenhum switch ativo no momento.",
+    "home.no_active_link": "Ver no Histórico →",
+    "history.attention_title": "Precisam da sua atenção",
+    "history.activity_title": "Atividade",
     "create.header_title": "Novo switch",
   },
 
@@ -1176,6 +1188,10 @@ const DICT = {
     "settings.access_code_toast_saved": "Code d'accès enregistré",
     "settings.access_code_toast_removed": "Code d'accès supprimé",
     "settings.biometric_hint_extra": "Aussi utilisée pour accéder aux paramètres critiques d'un switch.",
+    "home.no_active_title": "Tu n'as aucun switch actif pour le moment.",
+    "home.no_active_link": "Voir dans l'historique →",
+    "history.attention_title": "Nécessitent ton attention",
+    "history.activity_title": "Activité",
     "create.header_title": "Nouveau switch",
   },
 
@@ -1459,6 +1475,10 @@ const DICT = {
     "settings.access_code_toast_saved": "Zugangscode gespeichert",
     "settings.access_code_toast_removed": "Zugangscode entfernt",
     "settings.biometric_hint_extra": "Wird auch verwendet, um die kritischen Einstellungen eines Switches zu öffnen.",
+    "home.no_active_title": "Du hast gerade keine aktiven Switches.",
+    "home.no_active_link": "In der Historie ansehen →",
+    "history.attention_title": "Brauchen deine Aufmerksamkeit",
+    "history.activity_title": "Aktivität",
     "create.header_title": "Neuer Switch",
   },
 
@@ -1742,6 +1762,10 @@ const DICT = {
     "settings.access_code_toast_saved": "קוד הגישה נשמר",
     "settings.access_code_toast_removed": "קוד הגישה הוסר",
     "settings.biometric_hint_extra": "משמש גם כדי להיכנס להגדרות הקריטיות של מתג.",
+    "home.no_active_title": "אין לך כרגע מתגים פעילים.",
+    "home.no_active_link": "צפייה בהיסטוריה →",
+    "history.attention_title": "דורשים את תשומת לבך",
+    "history.activity_title": "פעילות",
     "create.header_title": "מתג חדש",
   },
 
@@ -2025,6 +2049,10 @@ const DICT = {
     "settings.access_code_toast_saved": "تم حفظ رمز الوصول",
     "settings.access_code_toast_removed": "تمت إزالة رمز الوصول",
     "settings.biometric_hint_extra": "يُستخدم أيضًا للدخول إلى الإعدادات الحرجة لمفتاح.",
+    "home.no_active_title": "ليس لديك أي مفاتيح نشطة الآن.",
+    "home.no_active_link": "عرض في السجل →",
+    "history.attention_title": "تحتاج إلى اهتمامك",
+    "history.activity_title": "النشاط",
     "create.header_title": "مفتاح جديد",
   },
 
@@ -2308,6 +2336,10 @@ const DICT = {
     "settings.access_code_toast_saved": "एक्सेस कोड सेव हो गया",
     "settings.access_code_toast_removed": "एक्सेस कोड हटा दिया गया",
     "settings.biometric_hint_extra": "स्विच की क्रिटिकल सेटिंग्स में जाने के लिए भी इस्तेमाल होता है।",
+    "home.no_active_title": "अभी आपका कोई एक्टिव स्विच नहीं है।",
+    "home.no_active_link": "इतिहास में देखें →",
+    "history.attention_title": "आपके ध्यान की जरूरत है",
+    "history.activity_title": "गतिविधि",
     "create.header_title": "नया स्विच",
   },
 
@@ -2591,6 +2623,10 @@ const DICT = {
     "settings.access_code_toast_saved": "访问码已保存",
     "settings.access_code_toast_removed": "访问码已删除",
     "settings.biometric_hint_extra": "也用于进入开关的关键设置。",
+    "home.no_active_title": "你现在没有任何活跃的开关。",
+    "home.no_active_link": "在历史记录中查看 →",
+    "history.attention_title": "需要你注意",
+    "history.activity_title": "活动",
     "create.header_title": "新建开关",
   },
 
@@ -2874,6 +2910,10 @@ const DICT = {
     "settings.access_code_toast_saved": "アクセスコードを保存しました",
     "settings.access_code_toast_removed": "アクセスコードを削除しました",
     "settings.biometric_hint_extra": "スイッチの重要設定に入る際にも使用されます。",
+    "home.no_active_title": "現在アクティブなスイッチはありません。",
+    "home.no_active_link": "履歴で見る →",
+    "history.attention_title": "確認が必要",
+    "history.activity_title": "アクティビティ",
     "create.header_title": "新しいスイッチ",
   },
 };
