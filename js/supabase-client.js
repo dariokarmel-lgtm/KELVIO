@@ -7,8 +7,8 @@
  * no el secreto de esta key. Nunca poner acá la service_role key.
  */
 
-const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
-const SUPABASE_ANON_KEY = "TU-ANON-KEY-PUBLICA";
+const SUPABASE_URL = "https://qjnoizdyjveaakhdqfob.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_p16e5aQ-AzS2nod9B0ZAFw_HLa1682S";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
