@@ -1,0 +1,10 @@
+{
+  "name": "kalvio",
+  "private": true,
+  "description": "KALVIO — Netlify build root. Sin build step para el frontend; estas dependencias son las que usan las Netlify Functions en netlify/functions/.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "resend": "^4.0.0",
+    "twilio": "^5.3.0"
+  }
+}

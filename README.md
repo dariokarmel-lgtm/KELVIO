@@ -40,13 +40,15 @@ netlify/functions/
   invite-info.js               ← Pública: quién invitó (para invite.html)
   invite-respond.js             ← Pública: el destinatario confirma/rechaza
   check-overdue.js               ← Scheduled function (cron cada 5 min)
-  package.json                    ← Dependencias de las functions
 
+package.json                ← Dependencias de las functions (@supabase/supabase-js,
+                               resend, twilio) — tiene que estar en la RAÍZ del repo,
+                               no dentro de netlify/functions/, si no Netlify no las instala
 netlify.toml               ← functions dir + cron del check-overdue
 ```
 
 Sin build step para el frontend — lo que está en la raíz se sube directo al hosting,
-igual que InstructorLog. Las functions sí tienen su propio `package.json` (Netlify las
+igual que InstructorLog. Las functions comparten el `package.json` de la raíz (Netlify lo
 instala solo al deployar).
 
 ## Setup — de cero a funcionando
