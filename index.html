@@ -34,7 +34,9 @@
   </nav>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/supabase-client.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -88,18 +90,12 @@ function render() {
       </div>`;
   } else {
     html += activeSwitches.map(cardFor).join("");
-    html += `
-      <div class="demo-banner" style="margin-top:18px;">
-        <strong>${t("common.demo")}</strong> ${t("home.demo_text")}
-        <a href="#" onclick="doReset(event)">${t("home.demo_reset_link")}</a> ${t("home.demo_suffix")}
-      </div>
-    `;
   }
 
   main.innerHTML = html;
 }
 
-function globalPanic() {
+async function globalPanic() {
   const active = getSwitches().filter((s) => !s.off && switchStatus(s) !== "triggered");
   if (active.length === 0) {
     showToast(t("home.toast_no_active"));
@@ -110,15 +106,20 @@ function globalPanic() {
     : confirm(t("home.panic_confirm_multi", { count: active.length }));
   if (!ok) return;
 
-  active.forEach((sw) => {
-    const windowMs = sw.mode === "legado" ? (sw.graceMs || 24 * HOUR) : (sw.alarmMs || 90000);
-    sw.nextDue = Date.now() - (windowMs + 1000);
-    saveSwitch(sw);
-    addHistory({ switchId: sw.id, type: "trigger_manual", note: t("home.history_note") });
-  });
+  showToast(t("home.toast_sending"));
+  let anyError = false;
+  for (const sw of active) {
+    try {
+      await callFunction("send-alert", { switchId: sw.id });
+    } catch (e) {
+      anyError = true;
+      console.error(e);
+    }
+  }
 
+  await loadAll();
   render();
-  showToast(t("home.toast_alert_sent"));
+  showToast(anyError ? t("home.toast_alert_error") : t("home.toast_alert_sent"));
 }
 
 function cardFor(sw) {
@@ -139,16 +140,12 @@ function cardFor(sw) {
   `;
 }
 
-function doReset(e) {
-  e.preventDefault();
-  if (confirm(t("home.confirm_reset"))) {
-    resetDB();
-    render();
-    showToast(t("home.toast_reset"));
-  }
-}
-
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  render();
+})();
 </script>
 </body>
 </html>

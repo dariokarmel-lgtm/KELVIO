@@ -1,115 +1,129 @@
 /*
- * Capa de datos del prototipo. Todo vive en localStorage — no hay backend real.
- * Sirve para que el prototipo "se sienta vivo" entre pantallas (check-ins,
- * destinatarios, historial) sin necesidad de un servidor.
+ * Capa de datos — Supabase real (ver supabase/schema.sql).
+ *
+ * Patrón: loadAll() trae todo una vez (async) y lo guarda en una caché
+ * en memoria; los getters (getSwitches, getSwitch, getRecipient, etc.)
+ * son sincrónicos y leen esa caché — así el resto del código (render(),
+ * cardFor(), etc.) no tuvo que reescribirse para ser async en cada
+ * función. Los "save"/"add"/"delete" sí son async: escriben en Supabase
+ * y después actualizan la caché.
  */
 
-const DB_KEY = "checkinapp_proto_db_v1";
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
-function seedDB() {
-  const now = Date.now();
+const _cache = { account: null, recipients: [], switches: [], history: [] };
+
+function mapProfile(row) {
+  const session = CURRENT_SESSION;
   return {
-    account: {
-      phoneVerified: true,
-      emailVerified: true,
-      phone: "+54 9 11 5555-0100",
-      email: "dario@example.com",
-      biometric: false,
-      securityCode: null, // PIN para entrar a configuración crítica (si no hay biometría)
-      plan: "free",
-      duress: { status: "none" }, // none | step1 | confirmed
-    },
-    recipients: [
-      { id: "r1", name: "Mamá (María)", phone: "+54 9 11 4444-1111", email: "maria@example.com", status: "confirmed" },
-      { id: "r2", name: "Juan", phone: "+54 9 11 4444-2222", email: "juan@example.com", status: "confirmed" },
-      { id: "r3", name: "Ana", phone: "+54 9 11 4444-3333", email: "ana@example.com", status: "pending" },
-    ],
-    switches: [
-      {
-        id: "s1",
-        mode: "legado",
-        name: "Chequeo semanal",
-        intervalMs: 7 * DAY,
-        graceMs: 24 * HOUR,
-        nextDue: now + 4 * HOUR + 12 * MIN,
-        recipients: ["r1", "r2"],
-        verifierId: "r1",
-        message: "Estoy bien, no se preocupen. Si reciben esto es porque no pude confirmar a tiempo.",
-        channels: { email: true, sms: false, call: false },
-        location: false,
-        off: false,
-      },
-      {
-        id: "s2",
-        mode: "sesion",
-        name: "Viaje a Bariloche",
-        intervalMs: 90 * MIN,
-        alarmMs: 90 * 1000,
-        nextDue: now + 42 * MIN,
-        recipients: ["r2"],
-        verifierId: null,
-        message: "No confirmé mi check-in a tiempo. Esta es mi última ubicación conocida.",
-        channels: { email: true, sms: true, call: false },
-        location: true,
-        off: false,
-      },
-    ],
-    history: [
-      { id: "h1", switchId: "s1", type: "created", ts: now - 6 * DAY, note: "Switch creado" },
-      { id: "h2", switchId: "s1", type: "checkin", ts: now - 3 * DAY, note: "Check-in confirmado" },
-      { id: "h3", switchId: "s2", type: "created", ts: now - 2 * HOUR, note: "Switch creado" },
-      { id: "h4", switchId: null, type: "invite", ts: now - 2 * DAY, note: "Invitación enviada a Ana" },
-    ],
+    phone: row?.phone || "",
+    phoneVerified: !!row?.phone_verified,
+    email: session ? session.user.email : "",
+    emailVerified: !!row?.email_verified,
+    biometric: !!row?.biometric,
+    securityCode: row?.security_code || null,
+    plan: row?.plan || "free",
+    duress: { status: row?.duress_status || "none", code: row?.duress_code || null },
   };
 }
 
-function loadDB() {
-  const raw = localStorage.getItem(DB_KEY);
-  if (!raw) {
-    const fresh = seedDB();
-    localStorage.setItem(DB_KEY, JSON.stringify(fresh));
-    return fresh;
-  }
-  try {
-    return JSON.parse(raw);
-  } catch (e) {
-    const fresh = seedDB();
-    localStorage.setItem(DB_KEY, JSON.stringify(fresh));
-    return fresh;
-  }
+function mapRecipient(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    phone: row.phone || "",
+    email: row.email || "",
+    status: row.status,
+    inviteToken: row.invite_token,
+  };
 }
 
-function saveDB(db) {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
+function mapSwitch(row) {
+  return {
+    id: row.id,
+    mode: row.mode,
+    name: row.name,
+    intervalMs: Number(row.interval_ms),
+    graceMs: row.grace_ms != null ? Number(row.grace_ms) : undefined,
+    alarmMs: row.alarm_ms != null ? Number(row.alarm_ms) : undefined,
+    nextDue: new Date(row.next_due).getTime(),
+    recipients: (row.switch_recipients || []).map((x) => x.recipient_id),
+    verifierId: row.verifier_id,
+    message: row.message,
+    channels: row.channels || { email: true, sms: false, call: false },
+    location: !!row.location,
+    off: !!row.off,
+    panicVisible: row.panic_visible !== false,
+    reminders: row.reminders || null,
+    triggeredAt: row.triggered_at ? new Date(row.triggered_at).getTime() : null,
+  };
 }
 
-function resetDB() {
-  const fresh = seedDB();
-  saveDB(fresh);
-  return fresh;
+function mapHistory(row) {
+  return { id: row.id, switchId: row.switch_id, type: row.type, note: row.note, ts: new Date(row.ts).getTime() };
+}
+
+/* ---------- Carga inicial ---------- */
+async function loadAll() {
+  const uid = getUserId();
+  const [accRes, recRes, swRes, histRes] = await Promise.all([
+    supabaseClient.from("profiles").select("*").eq("id", uid).single(),
+    supabaseClient.from("recipients").select("*").eq("user_id", uid).order("created_at"),
+    supabaseClient.from("switches").select("*, switch_recipients(recipient_id)").eq("user_id", uid).order("created_at"),
+    supabaseClient.from("history").select("*").eq("user_id", uid).order("ts", { ascending: false }),
+  ]);
+  _cache.account = mapProfile(accRes.data);
+  _cache.recipients = (recRes.data || []).map(mapRecipient);
+  _cache.switches = (swRes.data || []).map(mapSwitch);
+  _cache.history = (histRes.data || []).map(mapHistory);
 }
 
 /* ---------- Switches ---------- */
 function getSwitches() {
-  return loadDB().switches;
+  return _cache.switches;
 }
 function getSwitch(id) {
-  return loadDB().switches.find((s) => s.id === id) || null;
+  return _cache.switches.find((s) => s.id === id) || null;
 }
-function saveSwitch(sw) {
-  const db = loadDB();
-  const idx = db.switches.findIndex((s) => s.id === sw.id);
-  if (idx >= 0) db.switches[idx] = sw;
-  else db.switches.push(sw);
-  saveDB(db);
-}
-function deleteSwitch(id) {
-  const db = loadDB();
-  db.switches = db.switches.filter((s) => s.id !== id);
-  saveDB(db);
+
+async function saveSwitch(sw) {
+  const uid = getUserId();
+  if (!sw.id) sw.id = crypto.randomUUID();
+  const row = {
+    id: sw.id,
+    user_id: uid,
+    mode: sw.mode,
+    name: sw.name,
+    interval_ms: sw.intervalMs,
+    grace_ms: sw.graceMs ?? null,
+    alarm_ms: sw.alarmMs ?? null,
+    next_due: new Date(sw.nextDue).toISOString(),
+    verifier_id: sw.verifierId || null,
+    message: sw.message,
+    channels: sw.channels,
+    location: sw.location,
+    off: sw.off,
+    panic_visible: sw.panicVisible !== false,
+    reminders: sw.reminders || null,
+  };
+  const { data, error } = await supabaseClient.from("switches").upsert(row).select().single();
+  if (error) throw error;
+
+  // Sincroniza destinatarios: borrar y reinsertar es más simple que diffear.
+  await supabaseClient.from("switch_recipients").delete().eq("switch_id", data.id);
+  if (sw.recipients && sw.recipients.length) {
+    await supabaseClient
+      .from("switch_recipients")
+      .insert(sw.recipients.map((rid) => ({ switch_id: data.id, recipient_id: rid })));
+  }
+
+  const mapped = mapSwitch({ ...data, switch_recipients: (sw.recipients || []).map((rid) => ({ recipient_id: rid })) });
+  const idx = _cache.switches.findIndex((s) => s.id === mapped.id);
+  if (idx >= 0) _cache.switches[idx] = mapped;
+  else _cache.switches.push(mapped);
+  return mapped;
 }
 
 function switchStatus(sw) {
@@ -128,61 +142,83 @@ function switchStatus(sw) {
   }
 }
 
-function doCheckin(id) {
+async function doCheckin(id) {
   const sw = getSwitch(id);
   if (!sw) return;
-  sw.nextDue = Date.now() + sw.intervalMs;
-  saveSwitch(sw);
-  addHistory({ switchId: id, type: "checkin", note: "Check-in confirmado" });
+  const newNextDue = Date.now() + sw.intervalMs;
+  const { error } = await supabaseClient
+    .from("switches")
+    .update({ next_due: new Date(newNextDue).toISOString(), triggered_at: null })
+    .eq("id", id);
+  if (error) throw error;
+  sw.nextDue = newNextDue;
+  sw.triggeredAt = null;
+  await addHistory({ switchId: id, type: "checkin", note: t("history.type_checkin") });
 }
 
 /* ---------- Recipients ---------- */
 function getRecipients() {
-  return loadDB().recipients;
+  return _cache.recipients;
 }
 function getRecipient(id) {
-  return loadDB().recipients.find((r) => r.id === id) || null;
+  return _cache.recipients.find((r) => r.id === id) || null;
 }
-function saveRecipient(r) {
-  const db = loadDB();
-  if (!r.id) r.id = "r" + Math.random().toString(36).slice(2, 8);
-  const idx = db.recipients.findIndex((x) => x.id === r.id);
-  if (idx >= 0) db.recipients[idx] = r;
-  else db.recipients.push(r);
-  saveDB(db);
-  return r;
+
+async function saveRecipient(r) {
+  const uid = getUserId();
+  if (!r.id) r.id = crypto.randomUUID();
+  const row = { id: r.id, user_id: uid, name: r.name, phone: r.phone || null, email: r.email || null, status: r.status };
+  const { data, error } = await supabaseClient.from("recipients").upsert(row).select().single();
+  if (error) throw error;
+  const mapped = mapRecipient(data);
+  const idx = _cache.recipients.findIndex((x) => x.id === mapped.id);
+  if (idx >= 0) _cache.recipients[idx] = mapped;
+  else _cache.recipients.push(mapped);
+  return mapped;
 }
-function deleteRecipient(id) {
-  const db = loadDB();
-  db.recipients = db.recipients.filter((r) => r.id !== id);
-  saveDB(db);
+
+async function deleteRecipient(id) {
+  const { error } = await supabaseClient.from("recipients").delete().eq("id", id);
+  if (error) throw error;
+  _cache.recipients = _cache.recipients.filter((r) => r.id !== id);
 }
 
 /* ---------- History ---------- */
 function getHistory(switchId) {
-  const all = loadDB().history.slice().sort((a, b) => b.ts - a.ts);
-  if (!switchId) return all;
-  return all.filter((h) => h.switchId === switchId);
+  if (!switchId) return _cache.history;
+  return _cache.history.filter((h) => h.switchId === switchId);
 }
-function addHistory(entry) {
-  const db = loadDB();
-  db.history.push({
-    id: "h" + Math.random().toString(36).slice(2, 8),
-    ts: Date.now(),
-    switchId: null,
-    ...entry,
-  });
-  saveDB(db);
+
+async function addHistory(entry) {
+  const uid = getUserId();
+  const row = { user_id: uid, switch_id: entry.switchId || null, type: entry.type, note: entry.note };
+  const { data, error } = await supabaseClient.from("history").insert(row).select().single();
+  if (error) throw error;
+  const mapped = mapHistory(data);
+  _cache.history.unshift(mapped);
+  return mapped;
 }
 
 /* ---------- Account ---------- */
 function getAccount() {
-  return loadDB().account;
+  return _cache.account;
 }
-function saveAccount(acc) {
-  const db = loadDB();
-  db.account = acc;
-  saveDB(db);
+
+async function saveAccount(acc) {
+  const uid = getUserId();
+  const row = {
+    phone: acc.phone || null,
+    phone_verified: acc.phoneVerified,
+    email_verified: acc.emailVerified,
+    biometric: acc.biometric,
+    security_code: acc.securityCode || null,
+    duress_status: acc.duress.status,
+    duress_code: acc.duress.code || null,
+    plan: acc.plan,
+  };
+  const { error } = await supabaseClient.from("profiles").update(row).eq("id", uid);
+  if (error) throw error;
+  _cache.account = acc;
 }
 
 /* ---------- Formatting helpers ---------- */

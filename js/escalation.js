@@ -1,7 +1,7 @@
 /* Configuración de escalamiento: período de gracia / duración de alarma y recordatorios. */
 
 const escId = getParam("id");
-let sw = getSwitch(escId);
+let sw = null;
 
 function defaultRemindersLegado() {
   return [
@@ -79,7 +79,7 @@ function render() {
   qs("#save-btn").onclick = save;
 }
 
-function save() {
+async function save() {
   if (sw.mode === "legado") {
     sw.graceMs = parseInt(qs("#f-grace").value, 10);
     sw.reminders.forEach((r) => {
@@ -90,11 +90,17 @@ function save() {
     sw.alarmMs = parseInt(qs("#f-alarm").value, 10);
     sw.panicVisible = qs("#f-panic").checked;
   }
-  saveSwitch(sw);
-  addHistory({ switchId: sw.id, type: "config", note: t("escalation.history_updated") });
+  await saveSwitch(sw);
+  await addHistory({ switchId: sw.id, type: "config", note: t("escalation.history_updated") });
   showToast(t("escalation.toast_saved"));
   location.href = `configure-switch.html?id=${sw.id}`;
 }
 
-ensureDefaults();
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  sw = getSwitch(escId);
+  ensureDefaults();
+  render();
+})();

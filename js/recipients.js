@@ -2,8 +2,6 @@
 
 let showForm = false;
 
-qs("#fab-add").title = t("recipients.add_btn");
-
 function render() {
   const recipients = getRecipients();
   const switches = getSwitches();
@@ -72,13 +70,10 @@ function rowHtml(r, switches) {
       ${usedIn.length ? `<div class="text-sm muted mt-8">${t("recipients.used_in", { list: usedIn.map((s) => s.name).join(", ") })}</div>` : ""}
       ${isVerifierFor.length ? `<div class="mt-8"><span class="badge badge-violet">${t("recipients.verifier_of", { list: isVerifierFor.map((s) => s.name).join(", ") })}</span></div>` : ""}
 
-      ${r.status !== "confirmed" ? `
-        <div class="demo-banner mt-8" style="margin-bottom:0;">
-          <strong>${t("common.demo")}</strong> ${t("recipients.demo_status_note")}
-          <div class="flex gap-8 mt-8">
-            <button class="btn btn-outline btn-sm" onclick="setStatus('${r.id}','confirmed')">${t("recipients.simulate_confirmed")}</button>
-            <button class="btn btn-outline btn-sm" onclick="setStatus('${r.id}','rejected')">${t("recipients.simulate_rejected")}</button>
-          </div>
+      ${r.status === "pending" ? `
+        <div class="info-banner mt-8" style="margin-bottom:0;">
+          ${t("recipients.pending_note")}
+          <div class="mt-8"><button class="btn btn-outline btn-sm" onclick="resendInvite('${r.id}')">${t("recipients.resend_btn")}</button></div>
         </div>
       ` : ""}
 
@@ -98,7 +93,7 @@ function closeForm() {
   render();
 }
 
-function submitForm() {
+async function submitForm() {
   const name = qs("#nf-name").value.trim();
   const phone = qs("#nf-phone").value.trim();
   const email = qs("#nf-email").value.trim();
@@ -106,39 +101,54 @@ function submitForm() {
     showToast(t("recipients.toast_missing_fields"));
     return;
   }
-  saveRecipient({ name, phone, email, status: "pending" });
-  addHistory({ switchId: null, type: "invite", note: t("recipients.history_invite_sent", { name }) });
-  showForm = false;
-  render();
-  showToast(t("recipients.toast_invite_sent", { name }));
+
+  const submitBtn = qs("#submit-form");
+  submitBtn.disabled = true;
+  try {
+    const saved = await saveRecipient({ name, phone, email, status: "pending" });
+    await callFunction("send-invite", { recipientId: saved.id });
+    await loadAll();
+    showForm = false;
+    render();
+    showToast(t("recipients.toast_invite_sent", { name }));
+  } catch (e) {
+    console.error(e);
+    submitBtn.disabled = false;
+    showToast(t("home.toast_alert_error"));
+  }
 }
 
-function setStatus(id, status) {
-  const r = getRecipient(id);
-  if (!r) return;
-  r.status = status;
-  saveRecipient(r);
-  addHistory({
-    switchId: null,
-    type: "invite_response",
-    note: status === "confirmed" ? t("recipients.history_confirmed", { name: r.name }) : t("recipients.history_rejected", { name: r.name }),
-  });
-  render();
+async function resendInvite(id) {
+  try {
+    await callFunction("send-invite", { recipientId: id });
+    await loadAll();
+    render();
+    showToast(t("recipients.toast_invite_sent", { name: getRecipient(id)?.name || "" }));
+  } catch (e) {
+    console.error(e);
+    showToast(t("home.toast_alert_error"));
+  }
 }
 
-function removeRecipient(id) {
+async function removeRecipient(id) {
   if (!confirm(t("recipients.confirm_remove"))) return;
   const switches = getSwitches();
-  switches.forEach((s) => {
+  for (const s of switches) {
     if (s.recipients.includes(id)) {
       s.recipients = s.recipients.filter((rid) => rid !== id);
       if (s.verifierId === id) s.verifierId = null;
-      saveSwitch(s);
+      await saveSwitch(s);
     }
-  });
-  deleteRecipient(id);
+  }
+  await deleteRecipient(id);
   render();
   showToast(t("recipients.toast_removed"));
 }
 
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  qs("#fab-add").title = t("recipients.add_btn");
+  render();
+})();

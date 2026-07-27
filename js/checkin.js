@@ -60,6 +60,7 @@ function render() {
   const names = recipientNames(sw) || t("checkin.default_recipients");
   const isSesion = sw.mode === "sesion";
   const locationSuffix = sw.location ? t("checkin.location_suffix") : "";
+  const bigBtnLabel = isSesion ? t("checkin.btn_cuidame") : t("checkin.btn_legado");
 
   // Overlay de alarma / disparo (Modo Sesión vencido, o gatillado manualmente)
   const overlay = qs("#alarm-overlay");
@@ -79,7 +80,7 @@ function render() {
         <h2 style="margin:10px 0 4px;">${t("checkin.triggered_title")}</h2>
         <p class="text-sm muted">${t("checkin.triggered_body", { names })}</p>
       </div>`;
-    bottomExtra = `<button class="btn btn-outline mt-16" onclick="resetSwitchDemo()">${t("checkin.btn_reset_demo")}</button>`;
+    bottomExtra = `<button class="btn btn-green mt-16" id="checkin-btn-triggered">${bigBtnLabel}</button>`;
   } else if (status !== "off") {
     const dateSuffix = sw.mode === "legado" ? " (" + formatDate(sw.nextDue).split(" · ")[0] + ")" : "";
     stageHtml = `
@@ -87,7 +88,7 @@ function render() {
         <div class="ring" id="ring" style="${ringStyle(sw, status)}">
           <button class="big-btn" style="background:${isSesion ? "var(--color-primary)" : "var(--color-green)"};" id="checkin-btn">
             <span class="icon">✅</span>
-            <span>${isSesion ? t("checkin.btn_cuidame") : t("checkin.btn_legado")}</span>
+            <span>${bigBtnLabel}</span>
             <span class="sub">${t("checkin.btn_sub")}</span>
           </button>
         </div>
@@ -119,17 +120,12 @@ function render() {
     </div>
     ${stageHtml}
     ${bottomExtra}
-    <div class="demo-banner mt-16">
-      <strong>${t("common.demo")}</strong> ${t("checkin.demo_controls_label")}
-      <div class="btn-block-group mt-8">
-        <button class="btn btn-outline btn-sm" onclick="simulateExpire()">${t("checkin.btn_simulate_expire")}</button>
-        <button class="btn btn-outline btn-sm" onclick="resetSwitchDemo()">${t("checkin.btn_reset_checkin")}</button>
-      </div>
-    </div>
   `;
 
   const btn = qs("#checkin-btn");
   if (btn) btn.onclick = () => handleCheckin(sw);
+  const btnTriggered = qs("#checkin-btn-triggered");
+  if (btnTriggered) btnTriggered.onclick = () => handleCheckin(sw);
   const panicBtn = qs("#panic-btn");
   if (panicBtn) panicBtn.onclick = () => handlePanic(sw);
 }
@@ -146,8 +142,9 @@ function renderAlarmOverlay(sw, status) {
       <div class="alarm-screen">
         <h2>${t("checkin.alarm_triggered_title")}</h2>
         <p>${t("checkin.alarm_triggered_body", { names, location: locationSuffix })}</p>
-        <button class="cancel-btn" onclick="resetSwitchDemo()">${t("checkin.btn_reset_demo_caps")}</button>
+        <button class="cancel-btn" id="alarm-checkin-btn">${t("checkin.btn_cuidame")}</button>
       </div>`;
+    qs("#alarm-checkin-btn", overlay).onclick = () => handleCheckin(sw);
     return;
   }
 
@@ -158,45 +155,32 @@ function renderAlarmOverlay(sw, status) {
       <div class="countdown" id="alarm-countdown">${secs}</div>
       <p>${t("checkin.alarm_countdown_body", { names: `<b>${names}</b>`, location: locationSuffix })}</p>
       <button class="cancel-btn" id="alarm-cancel">${t("checkin.btn_cancel_caps")}</button>
-      <a class="panic-link" href="#" onclick="event.preventDefault()">${t("checkin.alarm_prototype_note")}</a>
     </div>`;
   const cancelBtn = qs("#alarm-cancel");
   if (cancelBtn) cancelBtn.onclick = () => handleCheckin(sw);
 }
 
-function handleCheckin(sw) {
-  doCheckin(sw.id);
+async function handleCheckin(sw) {
+  await doCheckin(sw.id);
   qs("#alarm-overlay").innerHTML = "";
   if (navigator.vibrate) navigator.vibrate(30);
   render();
   showToast(sw.mode === "legado" ? t("checkin.toast_legado") : t("checkin.toast_cuidame"));
 }
 
-function handlePanic(sw) {
+async function handlePanic(sw) {
   const ok = confirm(t("checkin.panic_confirm"));
   if (!ok) return;
-  sw.nextDue = Date.now() - ((sw.alarmMs || 90000) + 1000);
-  saveSwitch(sw);
-  addHistory({ switchId: sw.id, type: "trigger_manual", note: t("checkin.history_panic") });
+  showToast(t("home.toast_sending"));
+  try {
+    await callFunction("send-alert", { switchId: sw.id });
+  } catch (e) {
+    console.error(e);
+    showToast(t("home.toast_alert_error"));
+    return;
+  }
+  await loadAll();
   render();
-}
-
-function simulateExpire() {
-  const sw = loadCurrentSwitch();
-  if (!sw) return;
-  sw.nextDue = Date.now() - 1000;
-  saveSwitch(sw);
-  render();
-}
-
-function resetSwitchDemo() {
-  const sw = loadCurrentSwitch();
-  if (!sw) return;
-  sw.nextDue = Date.now() + sw.intervalMs;
-  saveSwitch(sw);
-  addHistory({ switchId: sw.id, type: "checkin", note: t("checkin.history_checkin_reset") });
-  render();
-  showToast(t("checkin.toast_switch_reset"));
 }
 
 function tick() {
@@ -222,5 +206,10 @@ function tick() {
   }
 }
 
-render();
-tickTimer = setInterval(tick, 1000);
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  render();
+  tickTimer = setInterval(tick, 1000);
+})();

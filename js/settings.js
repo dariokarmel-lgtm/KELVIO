@@ -17,7 +17,7 @@ function render() {
     <div class="card">
       <div class="card-row">
         <span style="font-size:18px;">📱</span>
-        <span class="flex-1">${acc.phone}</span>
+        <span class="flex-1">${acc.phone || "—"}</span>
         <span class="badge ${acc.phoneVerified ? "badge-green" : "badge-yellow"}">${acc.phoneVerified ? t("common.verified") : t("common.pending")}</span>
       </div>
       <div class="card-row mt-8">
@@ -72,12 +72,12 @@ function render() {
     </a>
 
     <div class="section-title" style="color:var(--color-red);">${t("settings.critical_zone")}</div>
-    <button class="btn btn-outline mt-8" style="border-color:var(--color-red); color:var(--color-red);" onclick="showToast(t('settings.toast_logout_pending'))">${t("settings.logout_btn")}</button>
+    <button class="btn btn-outline mt-8" style="border-color:var(--color-red); color:var(--color-red);" id="logout-btn">${t("settings.logout_btn")}</button>
   `;
 
-  qs("#f-bio").onchange = (e) => {
+  qs("#f-bio").onchange = async (e) => {
     acc.biometric = e.target.checked;
-    saveAccount(acc);
+    await saveAccount(acc);
     showToast(acc.biometric ? t("settings.toast_bio_on") : t("settings.toast_bio_off"));
   };
 
@@ -86,6 +86,8 @@ function render() {
     render();
     applyStaticTranslations();
   };
+
+  qs("#logout-btn").onclick = () => signOut();
 
   wireAccessCode();
   wireDuress();
@@ -110,12 +112,12 @@ function accessCodeHtml(acc) {
 }
 
 function wireAccessCode() {
-  const setup = (title) => {
+  const setup = async (title) => {
     const code = prompt(title);
     if (!code) return;
     const acc = getAccount();
     acc.securityCode = code;
-    saveAccount(acc);
+    await saveAccount(acc);
     render();
     showToast(t("settings.access_code_toast_saved"));
   };
@@ -127,11 +129,11 @@ function wireAccessCode() {
   if (changeBtn) changeBtn.onclick = () => setup(t("settings.access_code_prompt_new"));
 
   const removeBtn = qs("#access-code-remove-btn");
-  if (removeBtn) removeBtn.onclick = () => {
+  if (removeBtn) removeBtn.onclick = async () => {
     if (!confirm(t("settings.access_code_confirm_remove"))) return;
     const acc = getAccount();
     acc.securityCode = null;
-    saveAccount(acc);
+    await saveAccount(acc);
     render();
     showToast(t("settings.access_code_toast_removed"));
   };
@@ -150,8 +152,8 @@ function duressHtml(acc) {
     return `
       <p style="font-weight:700; margin:0 0 4px;">${t("settings.duress_title_step1")}</p>
       <p class="text-sm muted" style="margin:0 0 12px;">${t("settings.duress_desc_step1", { code: d.code })}</p>
-      <div class="demo-banner" style="margin-bottom:0;">
-        <strong>${t("common.demo")}</strong> ${t("settings.duress_demo_note")}
+      <div class="info-banner" style="margin-bottom:0;">
+        ${t("settings.duress_demo_note")}
         <div class="mt-8"><button class="btn btn-outline btn-sm" id="duress-confirm-btn">${t("settings.duress_confirm_btn")}</button></div>
       </div>
     `;
@@ -165,23 +167,23 @@ function duressHtml(acc) {
 
 function wireDuress() {
   const setupBtn = qs("#duress-setup-btn");
-  if (setupBtn) setupBtn.onclick = () => {
+  if (setupBtn) setupBtn.onclick = async () => {
     const code = prompt(t("settings.duress_prompt_setup"));
     if (!code) return;
     const acc = getAccount();
     acc.duress = { status: "step1", code };
-    saveAccount(acc);
+    await saveAccount(acc);
     render();
     showToast(t("settings.duress_toast_saved"));
   };
 
   const confirmBtn = qs("#duress-confirm-btn");
-  if (confirmBtn) confirmBtn.onclick = () => {
+  if (confirmBtn) confirmBtn.onclick = async () => {
     const acc = getAccount();
     const typed = prompt(t("settings.duress_prompt_confirm"));
     if (typed === acc.duress.code) {
       acc.duress.status = "confirmed";
-      saveAccount(acc);
+      await saveAccount(acc);
       render();
       showToast(t("settings.duress_toast_confirmed"));
     } else {
@@ -190,13 +192,18 @@ function wireDuress() {
   };
 
   const resetBtn = qs("#duress-reset-btn");
-  if (resetBtn) resetBtn.onclick = () => {
+  if (resetBtn) resetBtn.onclick = async () => {
     if (!confirm(t("settings.duress_confirm_delete"))) return;
     const acc = getAccount();
     acc.duress = { status: "none" };
-    saveAccount(acc);
+    await saveAccount(acc);
     render();
   };
 }
 
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  render();
+})();

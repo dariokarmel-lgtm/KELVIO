@@ -1,6 +1,6 @@
 /* Modo Prueba — simula el flujo de disparo completo sin enviar nada real. */
 
-let selectedId = getParam("id") || (getSwitches()[0] && getSwitches()[0].id) || null;
+let selectedId = getParam("id") || null;
 let running = false;
 let step = 0;
 
@@ -30,6 +30,7 @@ function stepsFor(sw) {
 function channelList(sw) {
   const list = [t("testmode.channel_email")];
   if (sw.channels?.sms) list.push(t("testmode.channel_sms"));
+  if (sw.channels?.whatsapp) list.push(t("common.whatsapp"));
   if (sw.channels?.call) list.push(t("testmode.channel_call"));
   return list.join(", ");
 }
@@ -83,10 +84,10 @@ function render() {
   const sel = qs("#f-switch");
   if (sel) sel.onchange = (e) => { selectedId = e.target.value; render(); };
   const startBtn = qs("#start-btn");
-  if (startBtn) startBtn.onclick = () => {
+  if (startBtn) startBtn.onclick = async () => {
     running = true;
     step = 0;
-    addHistory({ switchId: sw.id, type: "trigger_sim", note: t("testmode.history_started", { name: sw.name }) });
+    await addHistory({ switchId: sw.id, type: "trigger_sim", note: t("testmode.history_started", { name: sw.name }) });
     render();
   };
   const nextBtn = qs("#next-btn");
@@ -95,4 +96,13 @@ function render() {
   if (restartBtn) restartBtn.onclick = () => { running = false; step = 0; render(); };
 }
 
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  if (!selectedId) {
+    const first = getSwitches()[0];
+    if (first) selectedId = first.id;
+  }
+  render();
+})();

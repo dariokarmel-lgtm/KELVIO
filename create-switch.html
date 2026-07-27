@@ -19,15 +19,17 @@
   <main class="app-main" id="main"></main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/supabase-client.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 <script>
 let selectedMode = null;
 
 function render() {
-  const db = loadDB();
-  const atFreeLimit = db.account.plan === "free" && db.switches.length >= 1;
+  const acc = getAccount();
+  const atFreeLimit = acc.plan === "free" && getSwitches().length >= 1;
 
   qs("#main").innerHTML = `
     <p class="eyebrow">${t("create.step")}</p>
@@ -68,7 +70,13 @@ function pick(mode) {
 }
 
 qs("#header-title").textContent = t("create.header_title");
-render();
+
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  render();
+})();
 </script>
 </body>
 </html>

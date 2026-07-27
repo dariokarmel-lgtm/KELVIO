@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Invitación — KALVIO</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" />
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="invite">
+<div class="phone">
+  <main class="app-main no-nav-padding" id="main" style="padding-top:60px;">
+    <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:24px;">
+      <img src="img/kalvio-icon-256.png" alt="KALVIO" style="width:84px; height:84px; border-radius:50%; margin-bottom:12px;" />
+      <h1 style="margin:0; font-size:22px;">KALVIO</h1>
+    </div>
+    <div id="content" class="text-center">Cargando…</div>
+  </main>
+</div>
+
+<script src="js/i18n.js"></script>
+<script>
+async function init() {
+  const token = new URLSearchParams(location.search).get("token");
+  const content = document.getElementById("content");
+  content.textContent = t("invite.loading");
+
+  if (!token) {
+    content.innerHTML = `<p class="muted">${t("invite.error_notfound")}</p>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`/.netlify/functions/invite-info?token=${encodeURIComponent(token)}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    render(token, data.inviterEmail || data.recipientName);
+  } catch {
+    content.innerHTML = `<p class="muted">${t("invite.error_notfound")}</p>`;
+  }
+}
+
+function render(token, name) {
+  const content = document.getElementById("content");
+  content.innerHTML = `
+    <p style="font-size:15px; line-height:1.5;">${t("invite.confirm_prompt", { name: name || "—" })}</p>
+    <div class="btn-block-group mt-16">
+      <button class="btn btn-primary" id="confirm-btn">${t("invite.confirm_btn")}</button>
+      <button class="btn btn-outline" id="reject-btn">${t("invite.reject_btn")}</button>
+    </div>
+  `;
+  document.getElementById("confirm-btn").onclick = () => respond(token, "confirm");
+  document.getElementById("reject-btn").onclick = () => respond(token, "reject");
+}
+
+async function respond(token, action) {
+  const content = document.getElementById("content");
+  content.innerHTML = `<p class="muted">${t("invite.loading")}</p>`;
+  try {
+    const res = await fetch("/.netlify/functions/invite-respond", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, action }),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    content.innerHTML = `<p style="font-size:15px;">${action === "confirm" ? t("invite.confirmed_msg") : t("invite.rejected_msg")}</p>`;
+  } catch {
+    content.innerHTML = `<p class="muted">${t("invite.error_notfound")}</p>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>

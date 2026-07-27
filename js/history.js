@@ -10,6 +10,7 @@ function typeMeta(type) {
     invite_response: { icon: "👥", key: "history.type_invite_response" },
     config: { icon: "⚙️", key: "history.type_config" },
     trigger_manual: { icon: "🚨", key: "history.type_trigger_manual" },
+    trigger_auto: { icon: "⏰", key: "history.type_trigger_auto" },
     trigger_sim: { icon: "🧪", key: "history.type_trigger_sim" },
   };
   const m = map[type];
@@ -81,4 +82,9 @@ function rowHtml(h) {
   `;
 }
 
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  render();
+})();

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Ingresar — KALVIO</title>
+<link rel="icon" type="image/png" href="img/favicon-32.png" />
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="login">
+<div class="phone">
+  <main class="app-main no-nav-padding" id="main" style="padding-top:60px;">
+    <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:28px;">
+      <img src="img/kalvio-icon-256.png" alt="KALVIO" style="width:84px; height:84px; border-radius:50%; margin-bottom:12px;" />
+      <h1 style="margin:0; font-size:22px;">KALVIO</h1>
+      <span class="subtitle" data-i18n="brand.tagline" style="color:var(--color-text-muted); font-size:13px;">Safety switch &amp; panic button</span>
+    </div>
+
+    <div class="tab-row" id="mode-tabs">
+      <span class="tab-item" data-mode="login" style="cursor:pointer;" data-i18n="auth.login_tab">Ingresar</span>
+      <span class="tab-item" data-mode="signup" style="cursor:pointer; background:var(--color-surface-2); color:var(--color-text);" data-i18n="auth.signup_tab">Crear cuenta</span>
+    </div>
+
+    <div id="error-banner" style="display:none;" class="warn-banner"></div>
+
+    <div class="field">
+      <label for="f-email" data-i18n="recipients.email_label">Email</label>
+      <input class="input" id="f-email" type="email" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label for="f-password" data-i18n="auth.password_label">Contraseña</label>
+      <input class="input" id="f-password" type="password" autocomplete="current-password" />
+    </div>
+
+    <button class="btn btn-primary mt-8" id="submit-btn" data-i18n="auth.login_tab">Ingresar</button>
+
+    <p class="text-sm muted text-center mt-16" id="hint-text" data-i18n="auth.login_hint">
+      ¿No tenés cuenta? Tocá "Crear cuenta" arriba.
+    </p>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/app.js"></script>
+<script>
+let mode = "login";
+
+function paintTabs() {
+  qsa("#mode-tabs .tab-item").forEach((el) => {
+    const active = el.dataset.mode === mode;
+    el.style.background = active ? "var(--color-primary)" : "var(--color-surface-2)";
+    el.style.color = active ? "#fff" : "var(--color-text)";
+  });
+  qs("#submit-btn").textContent = mode === "login" ? t("auth.login_tab") : t("auth.signup_tab");
+  qs("#hint-text").textContent = mode === "login" ? t("auth.login_hint") : t("auth.signup_hint");
+}
+
+qsa("#mode-tabs .tab-item").forEach((el) => {
+  el.onclick = () => {
+    mode = el.dataset.mode;
+    paintTabs();
+  };
+});
+
+function showError(msg) {
+  const el = qs("#error-banner");
+  el.textContent = msg;
+  el.style.display = "flex";
+}
+
+qs("#submit-btn").onclick = async () => {
+  const email = qs("#f-email").value.trim();
+  const password = qs("#f-password").value;
+  qs("#error-banner").style.display = "none";
+
+  if (!email || !password) {
+    showError(t("auth.missing_fields"));
+    return;
+  }
+
+  const fn = mode === "login"
+    ? supabaseClient.auth.signInWithPassword({ email, password })
+    : supabaseClient.auth.signUp({ email, password });
+
+  const { data, error } = await fn;
+  if (error) {
+    showError(error.message);
+    return;
+  }
+
+  if (mode === "signup" && !data.session) {
+    showError(t("auth.check_email_confirm"));
+    return;
+  }
+
+  const params = new URLSearchParams(location.search);
+  location.href = params.get("next") || "index.html";
+};
+
+(async function init() {
+  const session = await getSession();
+  if (session) {
+    const params = new URLSearchParams(location.search);
+    location.href = params.get("next") || "index.html";
+    return;
+  }
+  paintTabs();
+})();
+</script>
+</body>
+</html>

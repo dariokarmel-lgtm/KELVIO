@@ -2,7 +2,7 @@
 
 const isNew = getParam("new") === "1";
 const editId = getParam("id");
-let mode = getParam("mode") || (editId && getSwitch(editId) ? getSwitch(editId).mode : "legado");
+let mode = getParam("mode") || "legado";
 let working = null; // objeto de trabajo (no persiste hasta Guardar)
 
 function defaultMessage(m) {
@@ -20,7 +20,7 @@ function initWorking() {
   }
   // Nuevo switch con valores por defecto según el modo.
   working = {
-    id: "s" + Math.random().toString(36).slice(2, 8),
+    id: crypto.randomUUID(),
     mode,
     name: mode === "legado" ? t("configure.default_name_legado") : t("configure.default_name_cuidame"),
     intervalMs: mode === "legado" ? 7 * DAY : 90 * MIN,
@@ -30,7 +30,9 @@ function initWorking() {
     recipients: [],
     verifierId: null,
     message: defaultMessage(mode),
-    channels: mode === "legado" ? { email: true, sms: false, call: false } : { email: true, sms: true, call: false },
+    channels: mode === "legado"
+      ? { email: true, sms: false, whatsapp: false, call: false }
+      : { email: true, sms: true, whatsapp: false, call: false },
     location: mode === "sesion",
     off: false,
   };
@@ -117,7 +119,8 @@ function render() {
       <label class="checkbox-row"><input type="checkbox" checked disabled /> <span class="flex-1">${t("common.email")}</span> <span class="badge badge-gray">${t("common.always_on")}</span></label>
       ${mode === "sesion" ? `
         <label class="checkbox-row"><input type="checkbox" id="f-sms" ${working.channels.sms ? "checked" : ""} /> <span class="flex-1">${t("common.sms")}</span></label>
-        <label class="checkbox-row"><input type="checkbox" id="f-call" ${working.channels.call ? "checked" : ""} /> <span class="flex-1">${t("common.call")}</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="f-whatsapp" ${working.channels.whatsapp ? "checked" : ""} /> <span class="flex-1">${t("common.whatsapp")}</span></label>
+        <label class="checkbox-row"><input type="checkbox" id="f-call" ${working.channels.call ? "checked" : ""} disabled /> <span class="flex-1">${t("common.call")}</span> <span class="badge badge-gray">${t("configure.call_soon")}</span></label>
       ` : ""}
     </div>
 
@@ -195,15 +198,15 @@ function syncFormToWorking() {
     if (verifier) working.verifierId = verifier.value || null;
   } else {
     const sms = qs("#f-sms");
-    const call = qs("#f-call");
+    const whatsapp = qs("#f-whatsapp");
     const location = qs("#f-location");
     if (sms) working.channels.sms = sms.checked;
-    if (call) working.channels.call = call.checked;
+    if (whatsapp) working.channels.whatsapp = whatsapp.checked;
     if (location) working.location = location.checked;
   }
 }
 
-function toggleOff() {
+async function toggleOff() {
   const msg = working.off ? t("configure.confirm_turn_on") : t("configure.confirm_turn_off");
   if (working.off) {
     if (!confirm(msg)) return;
@@ -216,13 +219,13 @@ function toggleOff() {
     }
     working.off = true;
   }
-  saveSwitch(working);
-  addHistory({ switchId: working.id, type: "config", note: working.off ? t("configure.history_off") : t("configure.history_on") });
+  await saveSwitch(working);
+  await addHistory({ switchId: working.id, type: "config", note: working.off ? t("configure.history_off") : t("configure.history_on") });
   render();
   showToast(working.off ? t("configure.toast_off") : t("configure.toast_on"));
 }
 
-function save() {
+async function save() {
   working.name = qs("#f-name").value.trim() || working.name;
   const n = parseInt(qs("#f-interval-n").value, 10) || 1;
   const unit = qs("#f-interval-unit").value;
@@ -236,12 +239,13 @@ function save() {
   if (mode === "legado") {
     const verifierSel = qs("#f-verifier");
     working.verifierId = verifierSel ? (verifierSel.value || null) : null;
-    working.channels = { email: true, sms: false, call: false };
+    working.channels = { email: true, sms: false, whatsapp: false, call: false };
   } else {
     working.channels = {
       email: true,
       sms: qs("#f-sms") ? qs("#f-sms").checked : working.channels.sms,
-      call: qs("#f-call") ? qs("#f-call").checked : working.channels.call,
+      whatsapp: qs("#f-whatsapp") ? qs("#f-whatsapp").checked : working.channels.whatsapp,
+      call: false,
     };
     working.location = qs("#f-location") ? qs("#f-location").checked : working.location;
   }
@@ -250,9 +254,17 @@ function save() {
     if (!confirm(t("configure.confirm_no_recipients"))) return;
   }
 
-  saveSwitch(working);
-  addHistory({ switchId: working.id, type: isNew ? "created" : "config", note: isNew ? t("configure.history_created") : t("configure.history_updated") });
-  location.href = `checkin.html?id=${working.id}`;
+  const saveBtn = qs("#save-btn");
+  saveBtn.disabled = true;
+  try {
+    await saveSwitch(working);
+    await addHistory({ switchId: working.id, type: isNew ? "created" : "config", note: isNew ? t("configure.history_created") : t("configure.history_updated") });
+    location.href = `checkin.html?id=${working.id}`;
+  } catch (e) {
+    console.error(e);
+    saveBtn.disabled = false;
+    showToast(t("home.toast_alert_error"));
+  }
 }
 
 function escapeHtml(s) {
@@ -261,5 +273,14 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
-initWorking();
-render();
+(async function boot() {
+  const session = await requireSession();
+  if (!session) return;
+  await loadAll();
+  if (editId) {
+    const existing = getSwitch(editId);
+    if (existing) mode = existing.mode;
+  }
+  initWorking();
+  render();
+})();

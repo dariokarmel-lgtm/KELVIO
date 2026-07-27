@@ -159,16 +159,22 @@ de que el cambio se aplique.
   me muera" — más TAM, menos morboso.
 
 ## 11. Decisiones técnicas ya tomadas (nivel infraestructura, no código)
-- Sin servidor propio / VPS — buscar algo simple y de bajo costo (serverless / hosting
-  gestionado).
-- Email transaccional: **Resend** o **SendGrid**.
-- SMS / llamadas (Modo Sesión): pendiente de research, probablemente **Twilio**.
+- Sin servidor propio / VPS — Netlify (hosting + Functions) + Supabase (base de datos y
+  auth), mismo patrón que InstructorLog pero en un **proyecto de Supabase separado**
+  (evita chocar con las tablas/triggers de InstructorLog).
+- Email transaccional: **Resend**.
+- SMS / WhatsApp (Modo Sesión / MODO CUIDAME): **Twilio**. WhatsApp arranca en modo
+  sandbox (Meta todavía no aprobó el negocio para mandar a cualquier número).
+- Llamada automática: configurable en la UI pero no implementada de verdad todavía
+  (necesita Twilio Voice + TwiML).
 
 ## 12. Pendiente de definir (próximos pasos)
-- [ ] Contenido y tono exacto del mensaje real que se envía en el disparo.
-- [ ] Alcance del MVP — qué queda afuera de la v1 (candidatos a cortar: llamadas
-      automáticas, duress code, modo verificador, historial).
-- [ ] Stack técnico concreto y arquitectura (a definir cuando se pase a código).
+- [ ] Contenido y tono exacto del mensaje real que se envía en el disparo (hoy usa
+      directo el mensaje que el usuario escribió al configurar el switch).
+- [ ] Llamada automática real (Twilio Voice).
+- [ ] Verificar dominio propio en Resend (hoy usa el remitente de pruebas si no está seteado).
+- [ ] Aprobación de Meta para WhatsApp Business (hoy en sandbox).
+- [ ] Facturación real del plan Pro (el paywall es solo informativo, no bloquea).
 - [x] Nombre de la app: **KALVIO** ("Safety switch & panic button"). Logo oficial en `img/`.
 - [x] En la UI, el **Modo Sesión** se llama **"MODO CUIDAME"** (equivalente por idioma:
       "WATCH OVER ME MODE" en inglés, etc.) — el nombre conceptual "Modo Sesión" de este
@@ -177,3 +183,6 @@ de que el cambio se aplique.
       árabe. Motor de traducción en `js/i18n.js`, selector en Ajustes. Las traducciones a
       PT/FR/DE/HE/AR/HI/ZH/JA se generaron con IA — conviene una revisión de hablantes
       nativos antes de un lanzamiento real.
+- [x] Stack técnico y arquitectura: Supabase (Postgres + Auth + RLS) para los datos,
+      Netlify Functions para el envío real (Resend/Twilio) y el chequeo automático
+      programado (cron cada 5 min). Ver README.md para el setup completo paso a paso.
