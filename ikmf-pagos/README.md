@@ -1,6 +1,6 @@
 # IKMF Pagos
 
-**URL:** https://instructorfee.ikmfpassport.com
+**URL:** https://isntructorfee.ikmfpassport.com
 
 Sitio para controlar las cuotas mensuales de los instructores de IKMF, con tres niveles de
 acceso y validación de pagos mediante comprobante.
@@ -74,8 +74,8 @@ Sin build step: HTML/CSS/JS estático + `supabase-js` por CDN.
 3. Project Settings → API → copiar **Project URL** y **anon/publishable key** en
    `js/config.js`.
 4. Supabase → Authentication → URL Configuration:
-   - **Site URL** = `https://instructorfee.ikmfpassport.com`
-   - **Redirect URLs** = `https://instructorfee.ikmfpassport.com/**`
+   - **Site URL** = `https://isntructorfee.ikmfpassport.com`
+   - **Redirect URLs** = `https://isntructorfee.ikmfpassport.com/**`
 
    (Hace falta para los mails de confirmación, invitación y recuperar contraseña.)
 5. **Netlify** → Add new site → Import from Git → este repo, con
@@ -83,14 +83,14 @@ Sin build step: HTML/CSS/JS estático + `supabase-js` por CDN.
    Environment variables cargar:
    - `SUPABASE_URL` → la Project URL
    - `SUPABASE_SERVICE_ROLE_KEY` → Project Settings → API → service_role (**secreta**)
-   - `SITE_URL` → `https://instructorfee.ikmfpassport.com`
+   - `SITE_URL` → `https://isntructorfee.ikmfpassport.com`
 5b. **Dominio** — Netlify → Domain management → Add a domain →
-   `instructorfee.ikmfpassport.com`. Después, en el DNS de `ikmfpassport.com` (donde esté
+   `isntructorfee.ikmfpassport.com`. Después, en el DNS de `ikmfpassport.com` (donde esté
    registrado el dominio) crear el registro:
 
    | Tipo | Nombre | Valor |
    |---|---|---|
-   | CNAME | `instructorfee` | `<nombre-del-sitio>.netlify.app` |
+   | CNAME | `isntructorfee` | `<nombre-del-sitio>.netlify.app` |
 
    Cuando el DNS propague, Netlify emite el certificado HTTPS solo (Let's Encrypt) y
    redirige la URL `*.netlify.app` al dominio propio.

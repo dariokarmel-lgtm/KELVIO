@@ -17,7 +17,7 @@
  *   Nadie gestiona cuentas admin por acá (se hace por SQL).
  *
  * Variables de entorno: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
- * SITE_URL (https://instructorfee.ikmfpassport.com; si falta, usa la URL
+ * SITE_URL (https://isntructorfee.ikmfpassport.com; si falta, usa la URL
  * principal que da Netlify).
  */
 
