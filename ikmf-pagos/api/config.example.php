@@ -9,7 +9,7 @@
  * repositorio.
  */
 return [
-    'supabase_url'     => 'https://TU-PROYECTO.supabase.co',
+    'supabase_url'     => 'https://tajvnushhlauubkzvamx.supabase.co',
     'service_role_key' => 'TU-SERVICE-ROLE-KEY',
     // Para el link del email de invitación.
     'site_url'         => 'https://instructorfee.ikmfpassport.com',
