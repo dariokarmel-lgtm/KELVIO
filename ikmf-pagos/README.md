@@ -1,5 +1,7 @@
 # IKMF Pagos
 
+**URL:** https://instructorfee.ikmfpassport.com
+
 Sitio para controlar las cuotas mensuales de los instructores de IKMF, con tres niveles de
 acceso y validación de pagos mediante comprobante.
 
@@ -71,18 +73,27 @@ Sin build step: HTML/CSS/JS estático + `supabase-js` por CDN.
    el bucket `receipts` y algunos países de ejemplo (editables después).
 3. Project Settings → API → copiar **Project URL** y **anon/publishable key** en
    `js/config.js`.
-4. Authentication → URL Configuration → **Site URL** = la URL del sitio en Netlify
-   (para que funcionen los mails de confirmación y de recuperar contraseña).
+4. Supabase → Authentication → URL Configuration:
+   - **Site URL** = `https://instructorfee.ikmfpassport.com`
+   - **Redirect URLs** = `https://instructorfee.ikmfpassport.com/**`
+
+   (Hace falta para los mails de confirmación, invitación y recuperar contraseña.)
 5. **Netlify** → Add new site → Import from Git → este repo, con
    **Base directory = `ikmf-pagos`** (Publish directory `.`). En Site configuration →
    Environment variables cargar:
    - `SUPABASE_URL` → la Project URL
    - `SUPABASE_SERVICE_ROLE_KEY` → Project Settings → API → service_role (**secreta**)
-   - `SITE_URL` (opcional) → URL pública del sitio, para el link del email de invitación.
-     Si no se carga se usa la URL que asigna Netlify.
+   - `SITE_URL` → `https://instructorfee.ikmfpassport.com`
+5b. **Dominio** — Netlify → Domain management → Add a domain →
+   `instructorfee.ikmfpassport.com`. Después, en el DNS de `ikmfpassport.com` (donde esté
+   registrado el dominio) crear el registro:
 
-   Agregar también esa URL en Supabase → Authentication → URL Configuration →
-   **Redirect URLs** (`https://tu-sitio.netlify.app/**`).
+   | Tipo | Nombre | Valor |
+   |---|---|---|
+   | CNAME | `instructorfee` | `<nombre-del-sitio>.netlify.app` |
+
+   Cuando el DNS propague, Netlify emite el certificado HTTPS solo (Let's Encrypt) y
+   redirige la URL `*.netlify.app` al dominio propio.
 6. Entrar al sitio, crear tu cuenta y convertirla en admin desde el SQL Editor:
    ```sql
    update public.profiles set role = 'admin', active = true
