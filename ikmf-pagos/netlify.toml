@@ -1,0 +1,9 @@
+# Sitio de Netlify propio para IKMF Pagos: en Netlify, "Base directory" = ikmf-pagos
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "same-origin"

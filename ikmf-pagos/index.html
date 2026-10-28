@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ingresar — IKMF Pagos</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="login">
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="brand-mark">IK</span>
+      <h1>IKMF Pagos</h1>
+      <p>Control de cuotas mensuales de instructores</p>
+    </div>
+
+    <div class="card">
+      <div class="tabs" id="mode-tabs">
+        <button type="button" data-mode="login" class="active">Ingresar</button>
+        <button type="button" data-mode="signup">Crear cuenta</button>
+      </div>
+
+      <div id="msg" class="banner hidden"></div>
+
+      <form id="auth-form" novalidate>
+        <div class="signup-only hidden">
+          <div class="field">
+            <label for="f-name">Nombre y apellido</label>
+            <input class="input" id="f-name" autocomplete="name" />
+          </div>
+          <div class="field">
+            <label for="f-country">País</label>
+            <select class="input" id="f-country"><option value="">Cargando…</option></select>
+          </div>
+          <div class="field">
+            <label for="f-phone">Teléfono (opcional)</label>
+            <input class="input" id="f-phone" type="tel" autocomplete="tel" />
+          </div>
+        </div>
+
+        <div class="field email-field">
+          <label for="f-email">Email</label>
+          <input class="input" id="f-email" type="email" autocomplete="email" required />
+        </div>
+        <div class="field password-field">
+          <label for="f-password">Contraseña</label>
+          <input class="input" id="f-password" type="password" autocomplete="current-password" minlength="8" required />
+        </div>
+
+        <button class="btn primary block" id="submit-btn" type="submit">Ingresar</button>
+      </form>
+
+      <p class="sub" style="text-align:center; margin:14px 0 0;">
+        <a href="#" id="forgot-link">¿Olvidaste tu contraseña?</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/login.js"></script>
+</body>
+</html>

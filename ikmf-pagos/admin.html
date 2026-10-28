@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Administración — IKMF Pagos</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="admin">
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Administración</h1>
+      <p>Países, cuotas por defecto, directores y roles.</p>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button type="button" data-tab="users" class="active">Usuarios</button>
+    <button type="button" data-tab="countries">Países</button>
+  </div>
+
+  <section id="tab-users">
+    <div class="card">
+      <div class="card-head">
+        <div class="row">
+          <input class="input" id="u-search" placeholder="Buscar por nombre o email…" style="width:240px" />
+          <select class="input" id="u-country" style="width:auto"></select>
+          <select class="input" id="u-role" style="width:auto">
+            <option value="">Todos los roles</option>
+            <option value="instructor">Instructores</option>
+            <option value="director">Directores</option>
+            <option value="admin">Administradores</option>
+          </select>
+        </div>
+        <span class="sub" id="u-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>País</th>
+              <th>Rol</th>
+              <th>Activo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-countries" class="hidden">
+    <div class="card">
+      <div class="card-head"><h2>Países</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Código</th>
+              <th>Moneda</th>
+              <th>Cuota por defecto</th>
+              <th>Director(es)</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="countries-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Agregar país</h2></div>
+      <form id="c-form" class="row" novalidate>
+        <input class="input" id="c-name" placeholder="Nombre (ej. Perú)" style="width:200px" />
+        <input class="input" id="c-code" placeholder="Código ISO (PE)" maxlength="2" style="width:140px" />
+        <input class="input" id="c-currency" placeholder="Moneda (PEN)" maxlength="3" style="width:140px" />
+        <input class="input" id="c-fee" type="number" min="0" step="0.01" placeholder="Cuota" style="width:120px" />
+        <button class="btn primary" type="submit">Agregar</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

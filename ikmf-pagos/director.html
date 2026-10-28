@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Panel de país — IKMF Pagos</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="director">
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1 id="title">Panel de país</h1>
+      <p id="subtitle">Validá comprobantes y seguí quién está al día.</p>
+    </div>
+    <div class="row">
+      <select class="input hidden" id="country-select" style="width:auto"></select>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button type="button" data-tab="month" class="active">Pagos del mes</button>
+    <button type="button" data-tab="pending">Por validar <span class="badge hidden" id="pending-badge"></span></button>
+    <button type="button" data-tab="instructors">Instructores <span class="badge hidden" id="inactive-badge"></span></button>
+  </div>
+
+  <!-- Pagos del mes -->
+  <section id="tab-month">
+    <div class="row" style="margin-bottom:16px">
+      <button class="btn ghost sm" id="prev-month" type="button">‹</button>
+      <input class="input" id="month-input" type="month" style="width:auto" />
+      <button class="btn ghost sm" id="next-month" type="button">›</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="export-btn" type="button">Exportar CSV</button>
+    </div>
+    <div class="stats" id="month-stats"></div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Instructor</th>
+              <th>Estado</th>
+              <th class="num">Cuota</th>
+              <th class="num">Pagado</th>
+              <th>Fecha</th>
+              <th class="num">Meses adeudados</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="month-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Por validar -->
+  <section id="tab-pending" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <h2>Comprobantes esperando validación</h2>
+        <span class="sub">De todos los meses, el más viejo primero.</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Instructor</th>
+              <th>Mes</th>
+              <th class="num">Monto</th>
+              <th>Pagado el</th>
+              <th>Medio</th>
+              <th>Enviado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="pending-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Instructores -->
+  <section id="tab-instructors" class="hidden">
+    <div class="banner info">
+      Los instructores se registran solos eligiendo su país. Activalos acá para que puedan cargar pagos.
+      Si la cuota queda vacía se usa la cuota por defecto del país (<strong id="default-fee"></strong>).
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Instructor</th>
+              <th>Contacto</th>
+              <th>Activo</th>
+              <th>Cuota propia</th>
+              <th>Cobrar desde</th>
+              <th class="num">Adeuda</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="instructors-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/director.js"></script>
+</body>
+</html>

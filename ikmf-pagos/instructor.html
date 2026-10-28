@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mis pagos — IKMF Pagos</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="instructor">
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1>Mis pagos</h1>
+      <p id="fee-line">Cargando…</p>
+    </div>
+    <button class="btn primary" id="new-payment-btn" type="button">+ Cargar pago</button>
+  </div>
+
+  <div id="banner"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Mes por mes</h2>
+      <span class="sub">Cada pago lo valida el director de tu país.</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mes</th>
+            <th>Estado</th>
+            <th class="num">Monto</th>
+            <th>Pagado el</th>
+            <th>Detalle</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="months-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/common.js"></script>
+<script src="js/instructor.js"></script>
+</body>
+</html>
