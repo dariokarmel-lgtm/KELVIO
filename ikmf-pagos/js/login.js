@@ -28,23 +28,23 @@ function setMode(next) {
   document.querySelector(".password-field").classList.toggle("hidden", next === "forgot");
   $("forgot-link").classList.toggle("hidden", next !== "login");
   $("f-password").autocomplete = next === "login" ? "current-password" : "new-password";
-  $("submit-btn").textContent = {
-    login: "Ingresar",
-    signup: "Crear cuenta",
-    forgot: "Enviar link de recuperación",
-    recovery: "Guardar nueva contraseña",
-  }[next];
-  document.querySelector('.password-field label').textContent = next === "recovery" ? "Elegí tu contraseña" : "Contraseña";
+  $("submit-btn").textContent = t({
+    login: "login.btn_login",
+    signup: "login.btn_signup",
+    forgot: "login.btn_forgot",
+    recovery: "login.btn_recovery",
+  }[next]);
+  $("password-label").textContent = t(next === "recovery" ? "login.choose_password" : "login.password");
 }
 
 async function loadCountries() {
   const { data, error } = await sb.from("countries").select("id, name").order("name");
   const sel = $("f-country");
   if (error) {
-    sel.innerHTML = `<option value="">No se pudieron cargar los países</option>`;
+    sel.innerHTML = `<option value="">${esc(t("login.countries_error"))}</option>`;
     return;
   }
-  sel.innerHTML = `<option value="">Elegí tu país…</option>` +
+  sel.innerHTML = `<option value="">${esc(t("login.choose_country"))}</option>` +
     data.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
 }
 
@@ -70,9 +70,9 @@ async function onSubmit(e) {
       const full_name = $("f-name").value.trim();
       const country_id = $("f-country").value;
       const phone = $("f-phone").value.trim();
-      if (!full_name) throw new Error("Completá tu nombre.");
-      if (!country_id) throw new Error("Elegí tu país.");
-      if (password.length < 8) throw new Error("La contraseña tiene que tener al menos 8 caracteres.");
+      if (!full_name) throw new Error(t("login.err_name"));
+      if (!country_id) throw new Error(t("login.err_country"));
+      if (password.length < 8) throw new Error(t("login.err_password"));
       const { data, error } = await sb.auth.signUp({
         email,
         password,
@@ -86,26 +86,24 @@ async function onSubmit(e) {
         await goHome();
       } else {
         setMode("login");
-        showMsg("¡Listo! Te mandamos un mail para confirmar tu cuenta. Después de confirmarla, ingresá acá. El director de tu país tiene que activar tu cuenta para que puedas cargar pagos.", "ok");
+        showMsg(t("login.signup_ok"), "ok");
       }
     } else if (mode === "forgot") {
-      if (!email) throw new Error("Escribí tu email.");
+      if (!email) throw new Error(t("login.err_email"));
       const { error } = await sb.auth.resetPasswordForEmail(email, {
         redirectTo: location.origin + location.pathname,
       });
       if (error) throw error;
       setMode("login");
-      showMsg("Si el email está registrado, te llegó un link para elegir una nueva contraseña.", "ok");
+      showMsg(t("login.forgot_ok"), "ok");
     } else if (mode === "recovery") {
-      if (password.length < 8) throw new Error("La contraseña tiene que tener al menos 8 caracteres.");
+      if (password.length < 8) throw new Error(t("login.err_password"));
       const { error } = await sb.auth.updateUser({ password });
       if (error) throw error;
       await goHome();
     }
   } catch (err) {
-    showMsg(/banned/i.test(errMsg(err))
-      ? "Tu cuenta está dada de baja. Si es un error, contactá al director de tu país."
-      : errMsg(err));
+    showMsg(errMsg(err));
   } finally {
     btn.disabled = false;
   }
@@ -124,6 +122,9 @@ sb.auth.onAuthStateChange((event) => {
 });
 
 (async function init() {
+  applyI18n();
+  $("lang-slot").innerHTML = langSelectHTML("login-lang");
+  bindLangSelect($("login-lang"));
   loadCountries();
   // Si ya hay sesión (y no es un reseteo de contraseña), entrar directo.
   const { data: { session } } = await sb.auth.getSession();
@@ -131,7 +132,7 @@ sb.auth.onAuthStateChange((event) => {
   if (session && fromEmailLink) {
     recovering = true;
     setMode("recovery");
-    if (INITIAL_HASH.includes("type=invite")) showMsg("¡Bienvenido/a! Elegí una contraseña para tu cuenta.", "info");
+    if (INITIAL_HASH.includes("type=invite")) showMsg(t("login.welcome_invite"), "info");
     return;
   }
   if (session && !recovering) {

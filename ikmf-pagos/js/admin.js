@@ -28,7 +28,7 @@ async function load() {
 function renderFilters() {
   const sel = $("u-country");
   const current = sel.value;
-  sel.innerHTML = `<option value="">Todos los países</option><option value="none">Sin país</option>` +
+  sel.innerHTML = `<option value="">${esc(t("adm.all_countries"))}</option><option value="none">${esc(t("adm.no_country"))}</option>` +
     countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
   sel.value = current;
 }
@@ -44,29 +44,29 @@ function renderUsers() {
     (!rf || u.role === rf) &&
     (showLeft || accountState(u) !== "left"));
 
-  $("u-count").textContent = `${list.length} de ${users.length}`;
+  $("u-count").textContent = t("adm.count", { n: list.length, total: users.length });
 
   $("users-body").innerHTML = list.map((u) => {
     let actions = "";
     if (u.role === "admin") {
-      actions = `<span class="sub">Se gestiona por SQL</span>`;
+      actions = `<span class="sub">${esc(t("adm.sql_managed"))}</span>`;
     } else {
       const st = accountState(u);
-      if (st === "pending") actions += `<button class="btn sm success" data-activate="${u.id}">Activar</button> `;
-      actions += `<button class="btn sm ghost" data-edit-user="${u.id}">Editar</button> `;
+      if (st === "pending") actions += `<button class="btn sm success" data-activate="${u.id}">${esc(t("user.activate"))}</button> `;
+      actions += `<button class="btn sm ghost" data-edit-user="${u.id}">${esc(t("common.edit"))}</button> `;
       actions += st === "left"
-        ? `<button class="btn sm ghost" data-activate="${u.id}">Reactivar</button>`
-        : `<button class="btn sm ghost" data-deactivate="${u.id}">Dar de baja</button>`;
+        ? `<button class="btn sm ghost" data-activate="${u.id}">${esc(t("user.reactivate"))}</button>`
+        : `<button class="btn sm ghost" data-deactivate="${u.id}">${esc(t("user.deactivate"))}</button>`;
     }
     return `<tr>
-      <td><strong>${esc(u.full_name || "(sin nombre)")}</strong>${u.id === ME.id ? ' <span class="sub">(vos)</span>' : ""}
-        <div class="sub">${esc(u.email)}${u.phone ? " · " + esc(u.phone) : ""}</div></td>
+      <td><strong>${esc(u.full_name || t("common.no_name"))}</strong>${u.id === ME.id ? ` <span class="sub">${esc(t("common.you"))}</span>` : ""}
+        <div class="sub" dir="ltr">${esc(u.email)}${u.phone ? " · " + esc(u.phone) : ""}</div></td>
       <td>${esc(countryName(u.country_id))}</td>
-      <td>${ROLE_LABELS[u.role]}</td>
+      <td>${esc(roleLabel(u.role))}</td>
       <td>${accountChip(u)}</td>
       <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="5" class="empty">No hay usuarios con ese filtro.</td></tr>`;
+  }).join("") || `<tr><td colspan="5" class="empty">${esc(t("adm.no_users"))}</td></tr>`;
 }
 
 function userById(id) {
@@ -93,13 +93,13 @@ function renderCountries() {
       <td><input class="input sm f-fee" type="number" min="0" step="0.01" value="${c.default_fee}" style="width:110px" /></td>
       <td>${directors.length
         ? directors.map((d) => `${esc(d.full_name || d.email)}${d.active ? "" : " " + accountChip(d)}`).join("<br>")
-        : '<span class="sub">Sin director — asignalo desde Usuarios</span>'}</td>
+        : `<span class="sub">${esc(t("adm.no_director"))}</span>`}</td>
       <td class="actions">
-        <button class="btn sm dark" data-save-country="${c.id}">Guardar</button>
-        <button class="btn sm ghost" data-delete-country="${c.id}">Eliminar</button>
+        <button class="btn sm dark" data-save-country="${c.id}">${esc(t("common.save"))}</button>
+        <button class="btn sm ghost" data-delete-country="${c.id}">${esc(t("common.delete"))}</button>
       </td>
     </tr>`;
-  }).join("") || `<tr><td colspan="6" class="empty">No hay países cargados.</td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="empty">${esc(t("adm.no_countries"))}</td></tr>`;
 }
 
 function renderAll() {
@@ -128,10 +128,10 @@ function countryRow(prefix, root) {
 }
 
 function validCountry(c) {
-  if (!c.name) return "Falta el nombre del país.";
-  if (!/^[A-Z]{2}$/.test(c.code)) return "El código tiene que ser de 2 letras (ISO), ej. AR.";
-  if (!/^[A-Z]{3}$/.test(c.currency)) return "La moneda tiene que ser un código de 3 letras, ej. ARS, USD, EUR.";
-  if (!(c.default_fee >= 0)) return "La cuota no puede ser negativa.";
+  if (!c.name) return t("adm.err_name");
+  if (!/^[A-Z]{2}$/.test(c.code)) return t("adm.err_code");
+  if (!/^[A-Z]{3}$/.test(c.currency)) return t("adm.err_currency");
+  if (!(c.default_fee >= 0)) return t("adm.err_fee");
   return null;
 }
 
@@ -142,34 +142,34 @@ async function saveCountry(id) {
   if (v) return toast(v, true);
   const { error } = await sb.from("countries").update(row).eq("id", id);
   if (error) return toast(errMsg(error), true);
-  toast("País actualizado.");
+  toast(t("adm.country_saved"));
   await refresh();
 }
 
 async function deleteCountry(id) {
   const n = users.filter((u) => u.country_id === id).length;
-  if (n) return toast(`No se puede eliminar: hay ${n} usuario(s) en ese país. Reasignalos primero.`, true);
-  if (!confirm(`¿Eliminar ${countryName(id)}?`)) return;
+  if (n) return toast(t("adm.cant_delete", { n }), true);
+  if (!confirm(t("adm.confirm_delete", { name: countryName(id) }))) return;
   const { error } = await sb.from("countries").delete().eq("id", id);
   if (error) return toast(errMsg(error), true);
-  toast("País eliminado.");
+  toast(t("adm.country_deleted"));
   await refresh();
 }
 
 function setTab(tab) {
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  ["users", "countries"].forEach((t) => $(`tab-${t}`).classList.toggle("hidden", t !== tab));
+  ["users", "countries"].forEach((x) => $(`tab-${x}`).classList.toggle("hidden", x !== tab));
 }
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("button");
-  if (!t) return;
-  if (t.dataset.tab) setTab(t.dataset.tab);
-  if (t.dataset.editUser) openAdminUserForm(userById(t.dataset.editUser));
-  if (t.dataset.deactivate) openDeactivateForm(userById(t.dataset.deactivate), refresh);
-  if (t.dataset.activate) reactivateUser(userById(t.dataset.activate), refresh);
-  if (t.dataset.saveCountry) saveCountry(t.dataset.saveCountry);
-  if (t.dataset.deleteCountry) deleteCountry(t.dataset.deleteCountry);
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.tab) setTab(b.dataset.tab);
+  if (b.dataset.editUser) openAdminUserForm(userById(b.dataset.editUser));
+  if (b.dataset.deactivate) openDeactivateForm(userById(b.dataset.deactivate), refresh);
+  if (b.dataset.activate) reactivateUser(userById(b.dataset.activate), refresh);
+  if (b.dataset.saveCountry) saveCountry(b.dataset.saveCountry);
+  if (b.dataset.deleteCountry) deleteCountry(b.dataset.deleteCountry);
 });
 
 (async function init() {
@@ -186,7 +186,7 @@ document.addEventListener("click", (e) => {
     const { error } = await sb.from("countries").insert(row);
     if (error) return toast(errMsg(error), true);
     e.target.reset();
-    toast("País agregado.");
+    toast(t("adm.country_added"));
     await refresh();
   });
 

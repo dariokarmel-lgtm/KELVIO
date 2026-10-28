@@ -1,19 +1,25 @@
 /*
- * Panel de país (director / admin): pagos del mes, comprobantes por
- * validar y gestión de instructores. Un director solo ve su país (RLS);
- * un admin elige el país con el selector.
+ * Panel de país (director / admin): pagos del mes, comprobantes pendientes
+ * y gestión de instructores. Un director solo ve su país (RLS) y NO aprueba
+ * ni rechaza: eso lo hace únicamente un admin (lo fuerza la base). El admin
+ * elige el país con el selector y ve los pendientes de todos los países.
  */
 
 const state = {
   countries: [],
   country: null,
-  people: [],     // perfiles del país que este usuario puede administrar
-  payments: [],   // pagos de esos perfiles
+  people: [],         // perfiles del país que este usuario puede ver
+  payments: [],       // pagos de esos perfiles
+  globalPending: [],  // admin: pendientes de todos los países (con su instructor)
   period: currentPeriod(),
   tab: "month",
 };
 
 function $(id) { return document.getElementById(id); }
+
+function isAdmin() {
+  return ME.role === "admin";
+}
 
 function person(id) {
   return state.people.find((p) => p.id === id);
@@ -23,8 +29,16 @@ function paymentOf(personId, period) {
   return state.payments.find((p) => p.instructor_id === personId && p.period === period);
 }
 
+function countryById(id) {
+  return state.countries.find((c) => c.id === id) || null;
+}
+
 function currency() {
   return state.country ? state.country.currency : "USD";
+}
+
+function pendingList() {
+  return isAdmin() ? state.globalPending : state.payments.filter((p) => p.status === "pending");
 }
 
 // ¿Se le cobra `period` a esta persona? (alta, no pendiente, no de baja para ese mes)
@@ -46,12 +60,16 @@ function dueMonths(p) {
   });
 }
 
+function redAmount(text) {
+  return `<span style="color:var(--color-red);font-weight:700">${text}</span>`;
+}
+
 /* ---------- Carga de datos ---------- */
 
 async function loadCountries() {
   const { data, error } = await sb.from("countries").select("*").order("name");
   if (error) throw error;
-  state.countries = ME.role === "admin" ? data : data.filter((c) => c.id === ME.country_id);
+  state.countries = isAdmin() ? data : data.filter((c) => c.id === ME.country_id);
 }
 
 async function loadCountryData() {
@@ -80,9 +98,20 @@ async function loadCountryData() {
   state.payments = all;
 }
 
+async function loadGlobalPending() {
+  if (!isAdmin()) return;
+  const { data, error } = await sb
+    .from("payments")
+    .select("*, instructor:profiles!payments_instructor_id_fkey(*)")
+    .eq("status", "pending")
+    .order("created_at");
+  if (error) throw error;
+  state.globalPending = data;
+}
+
 async function refresh() {
   try {
-    await loadCountryData();
+    await Promise.all([loadCountryData(), loadGlobalPending()]);
   } catch (e) {
     toast(errMsg(e), true);
   }
@@ -92,10 +121,10 @@ async function refresh() {
 /* ---------- Render ---------- */
 
 function renderAll() {
-  $("title").textContent = state.country ? `Panel — ${state.country.name}` : "Panel de país";
-  $("default-fee").textContent = state.country ? fmtMoney(state.country.default_fee, currency()) : "—";
+  $("title").textContent = state.country ? t("dir.title_country", { country: state.country.name }) : t("dir.title");
+  $("fee-note").textContent = t("dir.fee_note", { fee: state.country ? fmtMoney(state.country.default_fee, currency()) : "—" });
 
-  const pendingCount = state.payments.filter((p) => p.status === "pending").length;
+  const pendingCount = pendingList().length;
   $("pending-badge").textContent = pendingCount;
   $("pending-badge").classList.toggle("hidden", !pendingCount);
   const inactiveCount = state.people.filter((p) => accountState(p) === "pending").length;
@@ -125,13 +154,15 @@ function renderMonth() {
     if (pay && pay.status === "approved") collected += Number(pay.amount);
   });
 
-  $("month-stats").innerHTML = `
-    <div class="stat"><div class="label">Instructores</div><div class="value">${rows.length}</div></div>
-    <div class="stat green"><div class="label">Aprobados</div><div class="value">${counts.approved}</div></div>
-    <div class="stat yellow"><div class="label">Por validar</div><div class="value">${counts.pending}</div></div>
-    <div class="stat red"><div class="label">${isCurrentOrFuture ? "Sin pagar aún" : "Adeudan"}</div><div class="value">${counts.missing + counts.rejected}</div></div>
-    <div class="stat green"><div class="label">Recaudado</div><div class="value">${fmtMoney(collected, currency())}</div></div>
-    <div class="stat"><div class="label">Esperado</div><div class="value">${fmtMoney(expected, currency())}</div></div>`;
+  const stat = (cls, label, value) =>
+    `<div class="stat ${cls}"><div class="label">${esc(t(label))}</div><div class="value">${value}</div></div>`;
+  $("month-stats").innerHTML =
+    stat("", "stat.instructors", rows.length) +
+    stat("green", "stat.approved", counts.approved) +
+    stat("yellow", "stat.to_validate", counts.pending) +
+    stat("red", isCurrentOrFuture ? "stat.unpaid_yet" : "stat.owe", counts.missing + counts.rejected) +
+    stat("green", "stat.collected", fmtMoney(collected, currency())) +
+    stat("", "stat.expected", fmtMoney(expected, currency()));
 
   const order = { pending: 0, rejected: 1, due: 2, upcoming: 2, approved: 3 };
   rows.sort((a, b) => order[monthStatus(a.pay, period)] - order[monthStatus(b.pay, period)]
@@ -140,46 +171,51 @@ function renderMonth() {
   $("month-body").innerHTML = rows.map(({ p, pay }) => {
     const status = monthStatus(pay, period);
     const due = dueMonths(p).length;
-    let actions = "";
+    let actions;
     if (pay) {
-      actions = `<button class="btn sm ${pay.status === "pending" ? "primary" : "ghost"}" data-review="${pay.id}">${pay.status === "pending" ? "Validar" : "Ver"}</button>`;
+      const validate = pay.status === "pending" && isAdmin();
+      actions = `<button class="btn sm ${validate ? "primary" : "ghost"}" data-review="${pay.id}">${esc(t(validate ? "dir.validate" : "dir.view"))}</button>`;
     } else {
-      actions = `<button class="btn sm ghost" data-manual="${p.id}" data-period="${period}">Registrar pago</button>`;
+      actions = `<button class="btn sm ghost" data-manual="${p.id}" data-period="${period}">${esc(t("dir.register"))}</button>`;
     }
     return `<tr>
-      <td><strong>${esc(p.full_name || "(sin nombre)")}</strong><div class="sub">${esc(p.email)}${p.role === "director" ? " · Director" : ""}</div></td>
+      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong><div class="sub">${esc(p.email)}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div></td>
       <td>${chip(status)}</td>
       <td class="num">${fmtMoney(feeFor(p, state.country), currency())}</td>
       <td class="num">${pay ? fmtMoney(pay.amount, pay.currency) : "—"}</td>
       <td>${pay ? fmtDate(pay.paid_on) : "—"}</td>
-      <td class="num">${due ? `<span style="color:var(--color-red);font-weight:700">${due}</span>` : "0"}</td>
+      <td class="num">${due ? redAmount(due) : "0"}</td>
       <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">${state.country ? "No hay instructores a cobrar este mes." : "Elegí un país."}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">${esc(t(state.country ? "dir.no_rows_month" : "dir.choose_country"))}</td></tr>`;
 }
 
 function renderPending() {
-  const list = state.payments
-    .filter((p) => p.status === "pending")
-    .sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const admin = isAdmin();
+  $("pending-title").textContent = t(admin ? "dir.pending_title_admin" : "dir.pending_title_dir");
+  $("pending-note").innerHTML = admin ? "" : `<div class="banner info">${esc(t("dir.pending_note_dir"))}</div>`;
+  document.querySelectorAll(".admin-only").forEach((el) => el.classList.toggle("hidden", !admin));
 
+  const list = [...pendingList()].sort((a, b) => a.created_at.localeCompare(b.created_at));
   $("pending-body").innerHTML = list.map((pay) => {
-    const p = person(pay.instructor_id) || {};
+    const p = pay.instructor || person(pay.instructor_id) || {};
+    const c = countryById(p.country_id);
     return `<tr>
       <td><strong>${esc(p.full_name || p.email || "—")}</strong></td>
+      ${admin ? `<td>${esc(c ? c.name : "—")}</td>` : ""}
       <td>${fmtPeriod(pay.period)}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
       <td>${fmtDate(pay.paid_on)}</td>
-      <td>${esc(pay.method || "—")}</td>
+      <td>${esc(methodLabel(pay.method))}</td>
       <td>${fmtDate(pay.updated_at)}</td>
-      <td class="actions"><button class="btn sm primary" data-review="${pay.id}">Validar</button></td>
+      <td class="actions"><button class="btn sm ${admin ? "primary" : "ghost"}" data-review="${pay.id}">${esc(t(admin ? "dir.validate" : "dir.view"))}</button></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">No hay comprobantes pendientes. 🎉</td></tr>`;
+  }).join("") || `<tr><td colspan="${admin ? 8 : 7}" class="empty">${esc(t("dir.no_pending"))}</td></tr>`;
 }
 
 // Lo que puede hacer el usuario actual sobre una persona del listado.
 function canManagePerson(p) {
-  return ME.role === "admin" || p.role === "instructor";
+  return isAdmin() || p.role === "instructor";
 }
 
 function renderInstructors() {
@@ -195,31 +231,31 @@ function renderInstructors() {
     const st = accountState(p);
     let actions = "";
     if (canManagePerson(p)) {
-      if (st === "pending") actions += `<button class="btn sm success" data-activate="${p.id}">Activar</button> `;
-      actions += `<button class="btn sm ghost" data-edit-user="${p.id}">Editar</button> `;
+      if (st === "pending") actions += `<button class="btn sm success" data-activate="${p.id}">${esc(t("user.activate"))}</button> `;
+      actions += `<button class="btn sm ghost" data-edit-user="${p.id}">${esc(t("common.edit"))}</button> `;
       actions += st === "left"
-        ? `<button class="btn sm ghost" data-activate="${p.id}">Reactivar</button>`
-        : `<button class="btn sm ghost" data-deactivate="${p.id}">Dar de baja</button>`;
+        ? `<button class="btn sm ghost" data-activate="${p.id}">${esc(t("user.reactivate"))}</button>`
+        : `<button class="btn sm ghost" data-deactivate="${p.id}">${esc(t("user.deactivate"))}</button>`;
     }
     return `<tr>
-      <td><strong>${esc(p.full_name || "(sin nombre)")}</strong>
-        <div class="sub">${p.role === "director" ? "Director · " : ""}Registrado ${fmtDate(p.created_at)}</div></td>
-      <td>${esc(p.email)}<div class="sub">${esc(p.phone || "")}</div></td>
+      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong>
+        <div class="sub">${p.role === "director" ? esc(t("dir.director_tag")) + " · " : ""}${esc(t("dir.registered", { date: fmtDate(p.created_at) }))}</div></td>
+      <td><span dir="ltr">${esc(p.email)}</span><div class="sub" dir="ltr">${esc(p.phone || "")}</div></td>
       <td>${accountChip(p)}</td>
-      <td class="num">${fmtMoney(feeFor(p, state.country), currency())}${p.monthly_fee === null ? '<div class="sub">del país</div>' : ""}</td>
+      <td class="num">${fmtMoney(feeFor(p, state.country), currency())}${p.monthly_fee === null ? `<div class="sub">${esc(t("dir.country_fee"))}</div>` : ""}</td>
       <td>${fmtPeriod(p.start_month)}</td>
       <td class="num">${due.length
-        ? `<span style="color:var(--color-red);font-weight:700">${due.length} · ${fmtMoney(due.length * feeFor(p, state.country), currency())}</span>`
-        : "Al día"}</td>
+        ? redAmount(`${due.length} · ${fmtMoney(due.length * feeFor(p, state.country), currency())}`)
+        : esc(t("dir.up_to_date"))}</td>
       <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">${state.country ? "No hay instructores para mostrar." : "Elegí un país."}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">${esc(t(state.country ? "dir.no_instructors" : "dir.choose_country"))}</td></tr>`;
 }
 
 function openPersonForm(p) {
   openUserForm({
     user: p,
-    roles: ME.role === "admin" ? ["instructor", "director"] : null,
+    roles: isAdmin() ? ["instructor", "director"] : null,
     countries: null,
     country: state.country,
     onSaved: refresh,
@@ -228,51 +264,60 @@ function openPersonForm(p) {
 
 /* ---------- Acciones ---------- */
 
+// Detalle de un pago con su comprobante. Solo el admin ve Aprobar / Rechazar.
 function openReview(paymentId) {
-  const pay = state.payments.find((p) => p.id === paymentId);
-  const p = person(pay.instructor_id) || {};
-  const fee = feeFor(p, state.country);
+  const pay = state.payments.find((p) => p.id === paymentId) || state.globalPending.find((p) => p.id === paymentId);
+  if (!pay) return;
+  const p = pay.instructor || person(pay.instructor_id) || {};
+  const country = countryById(p.country_id) || state.country;
+  const cur = country ? country.currency : pay.currency;
+  const fee = feeFor(p, country);
+  const admin = isAdmin();
   const amountWarn = Number(pay.amount) < fee
-    ? `<div class="banner warn">El monto es menor a la cuota (${fmtMoney(fee, currency())}).</div>` : "";
+    ? `<div class="banner warn">${esc(t("rv.amount_low", { fee: fmtMoney(fee, cur) }))}</div>` : "";
+  const kv = (label, value) => `<dt>${esc(t(label))}</dt><dd>${value}</dd>`;
 
-  const { el, close } = openModal(`${p.full_name || p.email} — ${fmtPeriod(pay.period)}`, `
+  const { el, close } = openModal(`${p.full_name || p.email || ""} — ${fmtPeriod(pay.period)}`, `
     <div class="review-grid">
       <div>
         <p style="margin:0 0 12px">${chip(pay.status)}</p>
         ${amountWarn}
         <dl class="kv">
-          <dt>Monto</dt><dd>${fmtMoney(pay.amount, pay.currency)}</dd>
-          <dt>Cuota</dt><dd>${fmtMoney(fee, currency())}</dd>
-          <dt>Pagado el</dt><dd>${fmtDate(pay.paid_on)}</dd>
-          <dt>Medio</dt><dd>${esc(pay.method || "—")}</dd>
-          <dt>Referencia</dt><dd>${esc(pay.reference || "—")}</dd>
-          <dt>Nota</dt><dd>${esc(pay.note || "—")}</dd>
-          <dt>Enviado</dt><dd>${fmtDate(pay.updated_at)}</dd>
-          ${pay.reviewed_at ? `<dt>Revisado</dt><dd>${fmtDate(pay.reviewed_at)}</dd>` : ""}
-          ${pay.review_comment ? `<dt>Comentario</dt><dd>${esc(pay.review_comment)}</dd>` : ""}
+          ${admin && country ? kv("common.country", esc(country.name)) : ""}
+          ${kv("rv.amount", fmtMoney(pay.amount, pay.currency))}
+          ${kv("rv.fee", fmtMoney(fee, cur))}
+          ${kv("rv.paid_on", fmtDate(pay.paid_on))}
+          ${kv("rv.method", esc(methodLabel(pay.method)))}
+          ${kv("rv.reference", esc(pay.reference || "—"))}
+          ${kv("rv.note", esc(pay.note || "—"))}
+          ${kv("rv.sent", fmtDate(pay.updated_at))}
+          ${pay.reviewed_at ? kv("rv.reviewed", fmtDate(pay.reviewed_at)) : ""}
+          ${pay.review_comment ? kv("rv.comment", esc(pay.review_comment)) : ""}
         </dl>
+        ${admin ? `
         <div class="field">
-          <label for="r-comment">Comentario (obligatorio para rechazar)</label>
-          <textarea class="input" id="r-comment" placeholder="Ej: el comprobante no se lee, falta el monto…"></textarea>
+          <label for="r-comment">${esc(t("rv.comment_label"))}</label>
+          <textarea class="input" id="r-comment" placeholder="${esc(t("rv.comment_ph"))}"></textarea>
         </div>
         <div class="modal-foot" style="justify-content:flex-start">
-          ${pay.status !== "approved" ? `<button class="btn success" id="r-approve" type="button">✓ Aprobar</button>` : ""}
-          ${pay.status !== "rejected" ? `<button class="btn danger" id="r-reject" type="button">✕ Rechazar</button>` : ""}
-          ${pay.status !== "pending" ? `<button class="btn ghost" id="r-reopen" type="button">Volver a revisión</button>` : ""}
-        </div>
+          ${pay.status !== "approved" ? `<button class="btn success" id="r-approve" type="button">${esc(t("rv.approve"))}</button>` : ""}
+          ${pay.status !== "rejected" ? `<button class="btn danger" id="r-reject" type="button">${esc(t("rv.reject"))}</button>` : ""}
+          ${pay.status !== "pending" ? `<button class="btn ghost" id="r-reopen" type="button">${esc(t("rv.reopen"))}</button>` : ""}
+        </div>` : `<div class="banner info">${esc(t("rv.only_admin"))}</div>`}
       </div>
       <div>
         <div class="receipt-view" id="r-receipt"></div>
-        ${pay.receipt_path ? `<p class="sub" style="margin-top:8px">Tocá la imagen para abrirla en tamaño completo.</p>` : ""}
+        ${pay.receipt_path ? `<p class="sub" style="margin-top:8px">${esc(t("rv.tap_hint"))}</p>` : ""}
       </div>
     </div>`, { wide: true });
 
   renderReceipt(el.querySelector("#r-receipt"), pay.receipt_path);
+  if (!admin) return;
 
   const setStatus = async (status) => {
     const comment = el.querySelector("#r-comment").value.trim();
     if (status === "rejected" && !comment) {
-      toast("Escribí el motivo del rechazo para que el instructor sepa qué corregir.", true);
+      toast(t("rv.need_reason"), true);
       el.querySelector("#r-comment").focus();
       return;
     }
@@ -281,7 +326,7 @@ function openReview(paymentId) {
     const { error } = await sb.from("payments").update(update).eq("id", pay.id);
     if (error) return toast(errMsg(error), true);
     close();
-    toast(status === "approved" ? "Pago aprobado." : status === "rejected" ? "Pago rechazado." : "Pago devuelto a revisión.");
+    toast(t({ approved: "rv.approved_toast", rejected: "rv.rejected_toast", pending: "rv.reopened_toast" }[status]));
     await refresh();
   };
 
@@ -290,40 +335,46 @@ function openReview(paymentId) {
   el.querySelector("#r-reopen")?.addEventListener("click", () => setStatus("pending"));
 }
 
-// Pago registrado por el director (ej. efectivo): queda aprobado directamente.
+/*
+ * Pago cargado en nombre de un instructor (ej. efectivo). Si lo carga un
+ * admin queda aprobado; si lo carga un director queda pendiente hasta que
+ * un admin lo apruebe.
+ */
 function openManualPayment(personId, period) {
   const p = person(personId);
-  const { el, close } = openModal(`Registrar pago — ${p.full_name || p.email}`, `
+  const admin = isAdmin();
+  const { el, close } = openModal(t("man.title", { name: p.full_name || p.email }), `
     <form id="m-form" novalidate>
+      ${admin ? "" : `<div class="banner info">${esc(t("man.pending_note"))}</div>`}
       <div class="grid-2">
         <div class="field">
-          <label>Mes</label>
+          <label>${esc(t("man.month"))}</label>
           <input class="input" value="${fmtPeriod(period)}" disabled />
         </div>
         <div class="field">
-          <label for="m-amount">Monto (${esc(currency())})</label>
+          <label for="m-amount">${esc(t("man.amount", { cur: currency() }))}</label>
           <input class="input" id="m-amount" type="number" min="0.01" step="0.01" value="${feeFor(p, state.country) || ""}" />
         </div>
         <div class="field">
-          <label for="m-date">Fecha de pago</label>
+          <label for="m-date">${esc(t("man.date"))}</label>
           <input class="input" id="m-date" type="date" value="${todayISO()}" max="${todayISO()}" />
         </div>
         <div class="field">
-          <label for="m-method">Medio</label>
-          <select class="input" id="m-method">${methodOptions("Efectivo")}</select>
+          <label for="m-method">${esc(t("man.method"))}</label>
+          <select class="input" id="m-method">${methodOptions("cash")}</select>
         </div>
       </div>
       <div class="field">
-        <label for="m-file">Comprobante (opcional)</label>
+        <label for="m-file">${esc(t("man.file"))}</label>
         <input class="input" id="m-file" type="file" accept="image/*,application/pdf" />
       </div>
       <div class="field">
-        <label for="m-note">Nota (opcional)</label>
+        <label for="m-note">${esc(t("man.note"))}</label>
         <textarea class="input" id="m-note"></textarea>
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn ghost" id="m-cancel">Cancelar</button>
-        <button type="submit" class="btn success" id="m-submit">Registrar como aprobado</button>
+        <button type="button" class="btn ghost" id="m-cancel">${esc(t("common.cancel"))}</button>
+        <button type="submit" class="btn ${admin ? "success" : "primary"}" id="m-submit">${esc(t(admin ? "man.submit" : "man.submit_pending"))}</button>
       </div>
     </form>`);
 
@@ -331,7 +382,7 @@ function openManualPayment(personId, period) {
   el.querySelector("#m-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const amount = Number(el.querySelector("#m-amount").value);
-    if (!(amount > 0)) return toast("Ingresá un monto válido.", true);
+    if (!(amount > 0)) return toast(t("inst.err_amount"), true);
     const file = el.querySelector("#m-file").files[0];
     if (file) {
       const v = validateReceipt(file);
@@ -350,11 +401,11 @@ function openManualPayment(personId, period) {
         method: el.querySelector("#m-method").value,
         note: el.querySelector("#m-note").value.trim() || null,
         receipt_path,
-        status: "approved",
+        status: admin ? "approved" : "pending",
       });
       if (error) throw error;
       close();
-      toast("Pago registrado.");
+      toast(t(admin ? "man.done" : "man.done_pending"));
       await refresh();
     } catch (err) {
       toast(errMsg(err), true);
@@ -365,46 +416,53 @@ function openManualPayment(personId, period) {
 
 function exportMonth() {
   const period = state.period;
-  const rows = [["Instructor", "Email", "Mes", "Estado", "Cuota", "Monto pagado", "Moneda", "Fecha de pago", "Medio", "Referencia", "Comentario"]];
+  const rows = [[
+    "col.instructor", "common.email", "col.month", "col.status", "col.fee", "col.amount_paid",
+    "col.currency", "col.payment_date", "col.method", "col.reference", "col.comment",
+  ].map((k) => t(k))];
   state.people
     .filter((p) => billable(p, period) || paymentOf(p.id, period))
     .forEach((p) => {
       const pay = paymentOf(p.id, period);
       rows.push([
-        p.full_name, p.email, period.slice(0, 7), STATUS_LABELS[monthStatus(pay, period)],
+        p.full_name, p.email, period.slice(0, 7), statusLabel(monthStatus(pay, period)),
         feeFor(p, state.country), pay ? pay.amount : "", currency(),
-        pay ? pay.paid_on : "", pay ? pay.method : "", pay ? pay.reference : "", pay ? pay.review_comment : "",
+        pay ? pay.paid_on : "", pay ? methodLabel(pay.method) : "", pay ? pay.reference : "", pay ? pay.review_comment : "",
       ]);
     });
-  downloadCSV(`ikmf-${state.country ? state.country.code : "pais"}-${period.slice(0, 7)}.csv`, rows);
+  downloadCSV(`ikmf-${state.country ? state.country.code : "country"}-${period.slice(0, 7)}.csv`, rows);
 }
 
 function setTab(tab) {
   state.tab = tab;
   document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-  ["month", "pending", "instructors"].forEach((t) => $(`tab-${t}`).classList.toggle("hidden", t !== tab));
+  ["month", "pending", "instructors"].forEach((x) => $(`tab-${x}`).classList.toggle("hidden", x !== tab));
 }
 
 /* ---------- Init ---------- */
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("button");
-  if (!t) return;
-  if (t.dataset.review) openReview(t.dataset.review);
-  if (t.dataset.manual) openManualPayment(t.dataset.manual, t.dataset.period);
-  if (t.dataset.editUser) openPersonForm(person(t.dataset.editUser));
-  if (t.dataset.deactivate) openDeactivateForm(person(t.dataset.deactivate), refresh);
-  if (t.dataset.activate) reactivateUser(person(t.dataset.activate), refresh);
-  if (t.dataset.tab) setTab(t.dataset.tab);
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.review) openReview(b.dataset.review);
+  if (b.dataset.manual) openManualPayment(b.dataset.manual, b.dataset.period);
+  if (b.dataset.editUser) openPersonForm(person(b.dataset.editUser));
+  if (b.dataset.deactivate) openDeactivateForm(person(b.dataset.deactivate), refresh);
+  if (b.dataset.activate) reactivateUser(person(b.dataset.activate), refresh);
+  if (b.dataset.tab) setTab(b.dataset.tab);
 });
 
 (async function init() {
   if (!(await requireRole(["director", "admin"]))) return;
 
+  const main = document.querySelector("main");
   if (ME.role === "director" && !ME.active) {
-    document.querySelector("main").innerHTML = `<div class="banner warn">Tu cuenta de director todavía no está activa. Pedile a un administrador que la active.</div>`;
+    main.innerHTML = `<div class="banner warn">${esc(t("dir.inactive_director"))}</div>`;
     return;
   }
+
+  $("subtitle").textContent = t(isAdmin() ? "dir.subtitle" : "dir.subtitle_dir");
+  $("tabs").querySelector('[data-tab="pending"] [data-i18n]').textContent = t(isAdmin() ? "dir.tab_pending" : "dir.tab_pending_dir");
 
   try {
     await loadCountries();
@@ -413,7 +471,7 @@ document.addEventListener("click", (e) => {
   }
 
   const sel = $("country-select");
-  if (ME.role === "admin") {
+  if (isAdmin()) {
     sel.classList.remove("hidden");
     sel.innerHTML = state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
     let saved = null;
@@ -428,7 +486,7 @@ document.addEventListener("click", (e) => {
   } else {
     state.country = state.countries[0] || null;
     if (!state.country) {
-      document.querySelector("main").innerHTML = `<div class="banner warn">Tu cuenta no tiene país asignado. Pedile a un administrador que te lo asigne.</div>`;
+      main.innerHTML = `<div class="banner warn">${esc(t("dir.no_country"))}</div>`;
       return;
     }
   }
@@ -441,7 +499,7 @@ document.addEventListener("click", (e) => {
   $("export-btn").addEventListener("click", exportMonth);
   $("show-left").addEventListener("change", renderInstructors);
   $("new-user-btn").addEventListener("click", () => openPersonForm(null));
-  if (ME.role === "admin") $("new-user-btn").textContent = "+ Nuevo instructor / director";
+  if (isAdmin()) $("new-user-btn").textContent = t("dir.new_instr_or_dir");
 
   await refresh();
 })();

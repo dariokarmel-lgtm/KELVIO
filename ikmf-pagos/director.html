@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Panel de país — IKMF Pagos</title>
+<title data-i18n="title.director">Panel de país — IKMF Pagos</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-page="director">
 <main class="container">
   <div class="page-head">
     <div>
-      <h1 id="title">Panel de país</h1>
-      <p id="subtitle">Validá comprobantes y seguí quién está al día.</p>
+      <h1 id="title" data-i18n="dir.title">Panel de país</h1>
+      <p id="subtitle"></p>
     </div>
     <div class="row">
       <select class="input hidden" id="country-select" style="width:auto"></select>
@@ -19,19 +19,19 @@
   </div>
 
   <div class="tabs" id="tabs">
-    <button type="button" data-tab="month" class="active">Pagos del mes</button>
-    <button type="button" data-tab="pending">Por validar <span class="badge hidden" id="pending-badge"></span></button>
-    <button type="button" data-tab="instructors">Instructores <span class="badge hidden" id="inactive-badge"></span></button>
+    <button type="button" data-tab="month" class="active" data-i18n="dir.tab_month">Pagos del mes</button>
+    <button type="button" data-tab="pending"><span data-i18n="dir.tab_pending">Por validar</span> <span class="badge hidden" id="pending-badge"></span></button>
+    <button type="button" data-tab="instructors"><span data-i18n="dir.tab_instructors">Instructores</span> <span class="badge hidden" id="inactive-badge"></span></button>
   </div>
 
   <!-- Pagos del mes -->
   <section id="tab-month">
     <div class="row" style="margin-bottom:16px">
-      <button class="btn ghost sm" id="prev-month" type="button">‹</button>
+      <button class="btn ghost sm flip" id="prev-month" type="button">‹</button>
       <input class="input" id="month-input" type="month" style="width:auto" />
-      <button class="btn ghost sm" id="next-month" type="button">›</button>
+      <button class="btn ghost sm flip" id="next-month" type="button">›</button>
       <span class="spacer"></span>
-      <button class="btn ghost" id="export-btn" type="button">Exportar CSV</button>
+      <button class="btn ghost" id="export-btn" type="button" data-i18n="dir.export">Exportar CSV</button>
     </div>
     <div class="stats" id="month-stats"></div>
     <div class="card">
@@ -39,12 +39,12 @@
         <table>
           <thead>
             <tr>
-              <th>Instructor</th>
-              <th>Estado</th>
-              <th class="num">Cuota</th>
-              <th class="num">Pagado</th>
-              <th>Fecha</th>
-              <th class="num">Meses adeudados</th>
+              <th data-i18n="col.instructor">Instructor</th>
+              <th data-i18n="col.status">Estado</th>
+              <th class="num" data-i18n="col.fee">Cuota</th>
+              <th class="num" data-i18n="col.paid">Pagado</th>
+              <th data-i18n="col.date">Fecha</th>
+              <th class="num" data-i18n="col.due_months">Meses adeudados</th>
               <th></th>
             </tr>
           </thead>
@@ -58,19 +58,21 @@
   <section id="tab-pending" class="hidden">
     <div class="card">
       <div class="card-head">
-        <h2>Comprobantes esperando validación</h2>
-        <span class="sub">De todos los meses, el más viejo primero.</span>
+        <h2 id="pending-title"></h2>
+        <span class="sub" data-i18n="dir.pending_sub"></span>
       </div>
+      <div id="pending-note"></div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Instructor</th>
-              <th>Mes</th>
-              <th class="num">Monto</th>
-              <th>Pagado el</th>
-              <th>Medio</th>
-              <th>Enviado</th>
+              <th data-i18n="col.instructor">Instructor</th>
+              <th class="admin-only hidden" data-i18n="common.country">País</th>
+              <th data-i18n="col.month">Mes</th>
+              <th class="num" data-i18n="col.amount">Monto</th>
+              <th data-i18n="col.paid_on">Pagado el</th>
+              <th data-i18n="col.method">Medio</th>
+              <th data-i18n="col.sent">Enviado</th>
               <th></th>
             </tr>
           </thead>
@@ -83,25 +85,22 @@
   <!-- Instructores -->
   <section id="tab-instructors" class="hidden">
     <div class="row" style="margin-bottom:16px">
-      <button class="btn primary" id="new-user-btn" type="button">+ Nuevo instructor</button>
+      <button class="btn primary" id="new-user-btn" type="button" data-i18n="dir.new_instructor">+ Nuevo instructor</button>
       <span class="spacer"></span>
-      <label class="sub row" style="gap:6px"><input type="checkbox" id="show-left" /> Mostrar dados de baja</label>
+      <label class="sub row" style="gap:6px"><input type="checkbox" id="show-left" /> <span data-i18n="dir.show_left">Mostrar dados de baja</span></label>
     </div>
-    <p class="sub" style="margin:-4px 0 16px">
-      Si la cuota queda vacía se usa la cuota por defecto del país (<strong id="default-fee"></strong>).
-      Los que se registran solos quedan pendientes hasta que los actives.
-    </p>
+    <p class="sub" id="fee-note" style="margin:-4px 0 16px"></p>
     <div class="card">
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Instructor</th>
-              <th>Contacto</th>
-              <th>Estado</th>
-              <th class="num">Cuota</th>
-              <th>Cobrar desde</th>
-              <th class="num">Adeuda</th>
+              <th data-i18n="col.instructor">Instructor</th>
+              <th data-i18n="col.contact">Contacto</th>
+              <th data-i18n="col.status">Estado</th>
+              <th class="num" data-i18n="col.fee">Cuota</th>
+              <th data-i18n="col.start">Cobrar desde</th>
+              <th class="num" data-i18n="col.owes">Adeuda</th>
               <th></th>
             </tr>
           </thead>
@@ -114,6 +113,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/director.js"></script>
 </body>

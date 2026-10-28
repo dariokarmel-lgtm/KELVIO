@@ -3,17 +3,17 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mis pagos — IKMF Pagos</title>
+<title data-i18n="title.instructor">Mis pagos — IKMF Pagos</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-page="instructor">
 <main class="container">
   <div class="page-head">
     <div>
-      <h1>Mis pagos</h1>
-      <p id="fee-line">Cargando…</p>
+      <h1 data-i18n="inst.title">Mis pagos</h1>
+      <p id="fee-line" data-i18n="inst.loading">Cargando…</p>
     </div>
-    <button class="btn primary" id="new-payment-btn" type="button">+ Cargar pago</button>
+    <button class="btn primary" id="new-payment-btn" type="button" data-i18n="inst.new">+ Cargar pago</button>
   </div>
 
   <div id="banner"></div>
@@ -22,22 +22,22 @@
 
   <div class="card">
     <div class="card-head">
-      <h2>Mes por mes</h2>
-      <span class="sub">Cada pago lo valida el director de tu país.</span>
+      <h2 data-i18n="inst.month_by_month">Mes por mes</h2>
+      <span class="sub" data-i18n="inst.validated_by"></span>
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Mes</th>
-            <th>Estado</th>
-            <th class="num">Monto</th>
-            <th>Pagado el</th>
-            <th>Detalle</th>
+            <th data-i18n="col.month">Mes</th>
+            <th data-i18n="col.status">Estado</th>
+            <th class="num" data-i18n="col.amount">Monto</th>
+            <th data-i18n="col.paid_on">Pagado el</th>
+            <th data-i18n="col.detail">Detalle</th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="months-body"><tr><td colspan="6" class="empty">Cargando…</td></tr></tbody>
+        <tbody id="months-body"><tr><td colspan="6" class="empty" data-i18n="inst.loading">Cargando…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -45,6 +45,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/instructor.js"></script>
 </body>

@@ -3,22 +3,23 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ingresar — IKMF Pagos</title>
+<title data-i18n="title.login">Ingresar — IKMF Pagos</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-page="login">
 <div class="auth-wrap">
   <div class="auth-card">
+    <div class="auth-lang" id="lang-slot"></div>
     <div class="auth-logo">
       <span class="brand-mark">IK</span>
-      <h1>IKMF Pagos</h1>
-      <p>Control de cuotas mensuales de instructores</p>
+      <h1 data-i18n="app.name">IKMF Pagos</h1>
+      <p data-i18n="app.tagline">Control de cuotas mensuales de instructores</p>
     </div>
 
     <div class="card">
       <div class="tabs" id="mode-tabs">
-        <button type="button" data-mode="login" class="active">Ingresar</button>
-        <button type="button" data-mode="signup">Crear cuenta</button>
+        <button type="button" data-mode="login" class="active" data-i18n="login.tab_login">Ingresar</button>
+        <button type="button" data-mode="signup" data-i18n="login.tab_signup">Crear cuenta</button>
       </div>
 
       <div id="msg" class="banner hidden"></div>
@@ -26,33 +27,33 @@
       <form id="auth-form" novalidate>
         <div class="signup-only hidden">
           <div class="field">
-            <label for="f-name">Nombre y apellido</label>
+            <label for="f-name" data-i18n="login.name">Nombre y apellido</label>
             <input class="input" id="f-name" autocomplete="name" />
           </div>
           <div class="field">
-            <label for="f-country">País</label>
-            <select class="input" id="f-country"><option value="">Cargando…</option></select>
+            <label for="f-country" data-i18n="login.country">País</label>
+            <select class="input" id="f-country"><option value="" data-i18n="login.loading_countries">Cargando…</option></select>
           </div>
           <div class="field">
-            <label for="f-phone">Teléfono (opcional)</label>
-            <input class="input" id="f-phone" type="tel" autocomplete="tel" />
+            <label for="f-phone" data-i18n="login.phone_opt">Teléfono (opcional)</label>
+            <input class="input" id="f-phone" type="tel" dir="ltr" autocomplete="tel" />
           </div>
         </div>
 
         <div class="field email-field">
-          <label for="f-email">Email</label>
-          <input class="input" id="f-email" type="email" autocomplete="email" required />
+          <label for="f-email" data-i18n="common.email">Email</label>
+          <input class="input" id="f-email" type="email" dir="ltr" autocomplete="email" required />
         </div>
         <div class="field password-field">
-          <label for="f-password">Contraseña</label>
-          <input class="input" id="f-password" type="password" autocomplete="current-password" minlength="8" required />
+          <label for="f-password" id="password-label" data-i18n="login.password">Contraseña</label>
+          <input class="input" id="f-password" type="password" dir="ltr" autocomplete="current-password" minlength="8" required />
         </div>
 
-        <button class="btn primary block" id="submit-btn" type="submit">Ingresar</button>
+        <button class="btn primary block" id="submit-btn" type="submit" data-i18n="login.btn_login">Ingresar</button>
       </form>
 
       <p class="sub" style="text-align:center; margin:14px 0 0;">
-        <a href="#" id="forgot-link">¿Olvidaste tu contraseña?</a>
+        <a href="#" id="forgot-link" data-i18n="login.forgot">¿Olvidaste tu contraseña?</a>
       </p>
     </div>
   </div>
@@ -60,6 +61,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/login.js"></script>
 </body>

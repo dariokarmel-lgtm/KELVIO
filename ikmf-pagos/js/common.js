@@ -1,6 +1,7 @@
 /*
  * Helpers compartidos por todas las páginas: cliente Supabase, sesión,
  * perfil del usuario, navegación, formato de fechas/montos, comprobantes.
+ * Todos los textos pasan por t() (js/i18n.js).
  */
 
 // Se guarda antes de crear el cliente, que limpia el hash al leer la sesión
@@ -11,17 +12,16 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 
-const ROLE_LABELS = { instructor: "Instructor", director: "Director de país", admin: "Administrador" };
-const STATUS_LABELS = {
-  approved: "Aprobado",
-  pending: "En revisión",
-  rejected: "Rechazado",
-  due: "Adeuda",
-  upcoming: "A pagar",
-  inactive: "Inactivo",
+// Se guarda la clave en payments.method; los valores viejos en español se mapean.
+const PAYMENT_METHODS = ["transfer", "deposit", "mercadopago", "paypal", "cash", "other"];
+const LEGACY_METHODS = {
+  Transferencia: "transfer",
+  "Depósito": "deposit",
+  "Mercado Pago": "mercadopago",
+  PayPal: "paypal",
+  Efectivo: "cash",
+  Otro: "other",
 };
-const ACCOUNT_LABELS = { active: "Activo", pending: "Pendiente de activación", left: "Baja" };
-const PAYMENT_METHODS = ["Transferencia", "Depósito", "Mercado Pago", "PayPal", "Efectivo", "Otro"];
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const RECEIPT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
 
@@ -47,6 +47,7 @@ async function loadMe() {
  * al login; si el rol no alcanza, manda a la página que le corresponde.
  */
 async function requireRole(roles) {
+  applyI18n();
   let me;
   try {
     me = await loadMe();
@@ -78,27 +79,52 @@ async function signOut() {
 
 function renderTopbar() {
   const page = document.body.dataset.page;
-  const links = [{ href: "instructor.html", key: "instructor", label: "Mis pagos" }];
+  const links = [{ href: "instructor.html", key: "instructor", label: t("nav.my_payments") }];
   if (ME.role === "director" || ME.role === "admin") {
-    links.push({ href: "director.html", key: "director", label: ME.role === "admin" ? "Países" : "Mi país" });
+    links.push({ href: "director.html", key: "director", label: t(ME.role === "admin" ? "nav.countries" : "nav.my_country") });
   }
-  if (ME.role === "admin") links.push({ href: "admin.html", key: "admin", label: "Administración" });
+  if (ME.role === "admin") links.push({ href: "admin.html", key: "admin", label: t("nav.admin") });
 
   const bar = document.createElement("header");
   bar.className = "topbar";
   bar.innerHTML = `
     <div class="topbar-inner">
-      <div class="brand"><span class="brand-mark">IK</span> IKMF Pagos</div>
+      <div class="brand"><span class="brand-mark">IK</span> ${esc(t("app.name"))}</div>
       <nav class="nav">
-        ${links.map((l) => `<a href="${l.href}" class="${l.key === page ? "active" : ""}">${l.label}</a>`).join("")}
+        ${links.map((l) => `<a href="${l.href}" class="${l.key === page ? "active" : ""}">${esc(l.label)}</a>`).join("")}
       </nav>
       <div class="user-box">
-        <span>${esc(ME.full_name || ME.email)} · ${ROLE_LABELS[ME.role]}${ME.country ? " · " + esc(ME.country.name) : ""}</span>
-        <button type="button" id="logout-btn">Salir</button>
+        <span>${esc(ME.full_name || ME.email)} · ${esc(roleLabel(ME.role))}${ME.country ? " · " + esc(ME.country.name) : ""}</span>
+        ${langSelectHTML("topbar-lang")}
+        <button type="button" id="logout-btn">${esc(t("nav.logout"))}</button>
       </div>
     </div>`;
   document.body.prepend(bar);
   bar.querySelector("#logout-btn").addEventListener("click", signOut);
+  bindLangSelect(bar.querySelector("#topbar-lang"));
+}
+
+/* ---------- Etiquetas ---------- */
+
+function roleLabel(role) {
+  return t(`role.${role}`);
+}
+
+function statusLabel(status) {
+  return t(`status.${status}`);
+}
+
+function methodLabel(method) {
+  if (!method) return "—";
+  const key = PAYMENT_METHODS.includes(method) ? method : LEGACY_METHODS[method];
+  return key ? t(`method.${key}`) : method;
+}
+
+function methodOptions(selected) {
+  const sel = LEGACY_METHODS[selected] || selected;
+  return PAYMENT_METHODS
+    .map((m) => `<option value="${m}" ${m === sel ? "selected" : ""}>${esc(t(`method.${m}`))}</option>`)
+    .join("");
 }
 
 /* ---------- Fechas ---------- */
@@ -124,14 +150,14 @@ function periodsBetween(from, to) {
 
 function fmtPeriod(period) {
   const [y, m] = period.split("-").map(Number);
-  const s = new Date(y, m - 1, 1).toLocaleDateString("es", { month: "long", year: "numeric" });
+  const s = new Date(y, m - 1, 1).toLocaleDateString(currentLocale(), { month: "long", year: "numeric" });
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function fmtDate(iso) {
   if (!iso) return "—";
   const d = iso.length === 10 ? new Date(iso + "T00:00:00") : new Date(iso);
-  return d.toLocaleDateString("es", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return d.toLocaleDateString(currentLocale(), { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function todayISO() {
@@ -144,7 +170,7 @@ function todayISO() {
 function fmtMoney(amount, currency) {
   if (amount === null || amount === undefined || amount === "") return "—";
   try {
-    return new Intl.NumberFormat("es", { style: "currency", currency: currency || "USD" }).format(amount);
+    return new Intl.NumberFormat(currentLocale(), { style: "currency", currency: currency || "USD" }).format(amount);
   } catch {
     return `${Number(amount).toFixed(2)} ${currency || ""}`;
   }
@@ -167,7 +193,7 @@ function monthStatus(payment, period) {
 }
 
 function chip(status) {
-  return `<span class="chip ${status}">${STATUS_LABELS[status]}</span>`;
+  return `<span class="chip ${status}">${esc(statusLabel(status))}</span>`;
 }
 
 // Estado de la cuenta: activa, pendiente de activación (se registró sola) o de baja.
@@ -179,16 +205,18 @@ function accountState(profile) {
 function accountChip(profile) {
   const st = accountState(profile);
   const cls = { active: "approved", pending: "pending", left: "inactive" }[st];
-  const extra = st === "left" ? ` desde ${fmtPeriod(addMonths(profile.end_month, 1))}` : "";
-  return `<span class="chip ${cls}">${ACCOUNT_LABELS[st]}${extra}</span>`;
+  const text = st === "left"
+    ? t("account.left_since", { month: fmtPeriod(addMonths(profile.end_month, 1)) })
+    : t(`account.${st}`);
+  return `<span class="chip ${cls}">${esc(text)}</span>`;
 }
 
 /* ---------- Comprobantes ---------- */
 
 function validateReceipt(file) {
-  if (!file) return "Elegí el archivo del comprobante.";
-  if (file.size > MAX_RECEIPT_BYTES) return "El comprobante no puede pesar más de 5 MB.";
-  if (file.type && !RECEIPT_TYPES.includes(file.type)) return "Formato no permitido. Subí una imagen (JPG, PNG, WEBP, HEIC) o un PDF.";
+  if (!file) return t("receipt.err_missing");
+  if (file.size > MAX_RECEIPT_BYTES) return t("receipt.err_size");
+  if (file.type && !RECEIPT_TYPES.includes(file.type)) return t("receipt.err_type");
   return null;
 }
 
@@ -220,29 +248,29 @@ async function openReceipt(path) {
 // Renderiza el comprobante dentro de un contenedor (imagen o PDF).
 async function renderReceipt(container, path) {
   if (!path) {
-    container.innerHTML = `<p class="empty">Pago registrado sin comprobante.</p>`;
+    container.innerHTML = `<p class="empty">${esc(t("receipt.none"))}</p>`;
     return;
   }
-  container.innerHTML = `<p class="empty">Cargando comprobante…</p>`;
+  container.innerHTML = `<p class="empty">${esc(t("receipt.loading"))}</p>`;
   try {
     const url = await receiptUrl(path);
     if (/\.pdf$/i.test(path)) {
-      container.innerHTML = `<iframe src="${url}" title="Comprobante"></iframe>`;
+      container.innerHTML = `<iframe src="${url}" title="${esc(t("receipt.alt"))}"></iframe>`;
     } else if (/\.heic$/i.test(path)) {
-      container.innerHTML = `<p class="empty">Formato HEIC: <a href="${url}" target="_blank" rel="noopener">descargar comprobante</a></p>`;
+      container.innerHTML = `<p class="empty">HEIC: <a href="${url}" target="_blank" rel="noopener">${esc(t("receipt.download"))}</a></p>`;
     } else {
-      container.innerHTML = `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Comprobante" /></a>`;
+      container.innerHTML = `<a href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="${esc(t("receipt.alt"))}" /></a>`;
     }
   } catch (e) {
-    container.innerHTML = `<p class="empty">No se pudo cargar el comprobante: ${esc(errMsg(e))}</p>`;
+    container.innerHTML = `<p class="empty">${esc(t("receipt.error", { msg: errMsg(e) }))}</p>`;
   }
 }
 
-/* ---------- Netlify Functions ---------- */
+/* ---------- Endpoints del servidor (api/*.php) ---------- */
 
 async function callFunction(name, body) {
   const { data: { session } } = await sb.auth.getSession();
-  const res = await fetch(`/.netlify/functions/${name}`, {
+  const res = await fetch(`api/${name}.php`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -253,7 +281,11 @@ async function callFunction(name, body) {
   const text = await res.text();
   let data;
   try { data = JSON.parse(text); } catch { data = { error: text }; }
-  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `Error ${res.status}`);
+    err.code = data.code;
+    throw err;
+  }
   return data;
 }
 
@@ -276,54 +308,54 @@ function openUserForm({ user, roles, countries, country, onSaved }) {
     return c ? `${c.default_fee} ${c.currency}` : "";
   };
 
-  const { el, close } = openModal(isNew ? "Nuevo usuario" : `Editar — ${user.full_name || user.email}`, `
+  const { el, close } = openModal(isNew ? t("user.new") : t("user.edit_title", { name: user.full_name || user.email }), `
     <form id="u-form" novalidate>
       <div class="grid-2">
         <div class="field">
-          <label for="uf-name">Nombre y apellido</label>
+          <label for="uf-name">${esc(t("common.name"))}</label>
           <input class="input" id="uf-name" value="${esc(user ? user.full_name : "")}" />
         </div>
         <div class="field">
-          <label for="uf-email">Email</label>
-          <input class="input" id="uf-email" type="email" value="${esc(user ? user.email : "")}" />
+          <label for="uf-email">${esc(t("common.email"))}</label>
+          <input class="input" id="uf-email" type="email" dir="ltr" value="${esc(user ? user.email : "")}" />
         </div>
         <div class="field">
-          <label for="uf-phone">Teléfono</label>
-          <input class="input" id="uf-phone" type="tel" value="${esc(user ? user.phone : "")}" />
+          <label for="uf-phone">${esc(t("common.phone"))}</label>
+          <input class="input" id="uf-phone" type="tel" dir="ltr" value="${esc(user ? user.phone : "")}" />
         </div>
         ${roleList.length > 1 ? `
         <div class="field">
-          <label for="uf-role">Rol</label>
+          <label for="uf-role">${esc(t("common.role"))}</label>
           <select class="input" id="uf-role">
-            ${roleList.map((r) => `<option value="${r}" ${user && user.role === r ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
+            ${roleList.map((r) => `<option value="${r}" ${user && user.role === r ? "selected" : ""}>${esc(roleLabel(r))}</option>`).join("")}
           </select>
         </div>` : ""}
         ${countries ? `
         <div class="field">
-          <label for="uf-country">País</label>
+          <label for="uf-country">${esc(t("common.country"))}</label>
           <select class="input" id="uf-country">
-            <option value="">Elegí…</option>
+            <option value="">${esc(t("common.choose"))}</option>
             ${countries.map((c) => `<option value="${c.id}" ${c.id === currentCountry ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
           </select>
         </div>` : ""}
         <div class="field">
-          <label for="uf-fee">Cuota propia (vacío = la del país)</label>
+          <label for="uf-fee">${esc(t("user.own_fee"))}</label>
           <input class="input" id="uf-fee" type="number" min="0" step="0.01" value="${user && user.monthly_fee !== null ? user.monthly_fee : ""}" placeholder="${esc(countryFee(currentCountry))}" />
         </div>
         <div class="field">
-          <label for="uf-start">Cobrar desde</label>
+          <label for="uf-start">${esc(t("user.start"))}</label>
           <input class="input" id="uf-start" type="month" value="${(user ? user.start_month : currentPeriod()).slice(0, 7)}" />
         </div>
       </div>
       ${isNew ? `
       <div class="field">
-        <label for="uf-password">Contraseña inicial (opcional)</label>
-        <input class="input" id="uf-password" type="text" autocomplete="off" placeholder="Si la dejás vacía, le llega un email de invitación" />
+        <label for="uf-password">${esc(t("user.password"))}</label>
+        <input class="input" id="uf-password" type="text" autocomplete="off" placeholder="${esc(t("user.password_ph"))}" />
       </div>` : ""}
       <div id="uf-error"></div>
       <div class="modal-foot">
-        <button type="button" class="btn ghost" id="uf-cancel">Cancelar</button>
-        <button type="submit" class="btn primary" id="uf-submit">${isNew ? "Crear" : "Guardar cambios"}</button>
+        <button type="button" class="btn ghost" id="uf-cancel">${esc(t("common.cancel"))}</button>
+        <button type="submit" class="btn primary" id="uf-submit">${esc(t(isNew ? "common.create" : "common.save_changes"))}</button>
       </div>
     </form>`);
 
@@ -349,10 +381,11 @@ function openUserForm({ user, roles, countries, country, onSaved }) {
     if (isNew && val("#uf-password")) data.password = val("#uf-password");
 
     const errBox = el.querySelector("#uf-error");
+    const showErr = (m) => { errBox.innerHTML = `<div class="banner error">${esc(m)}</div>`; };
     errBox.innerHTML = "";
-    if (!data.full_name) return (errBox.innerHTML = `<div class="banner error">Completá el nombre.</div>`);
-    if (!data.email) return (errBox.innerHTML = `<div class="banner error">Completá el email.</div>`);
-    if (countries && !data.country_id) return (errBox.innerHTML = `<div class="banner error">Elegí el país.</div>`);
+    if (!data.full_name) return showErr(t("user.err_name"));
+    if (!data.email) return showErr(t("user.err_email"));
+    if (countries && !data.country_id) return showErr(t("user.err_country"));
 
     const btn = el.querySelector("#uf-submit");
     btn.disabled = true;
@@ -361,12 +394,10 @@ function openUserForm({ user, roles, countries, country, onSaved }) {
         ? { action: "create", data }
         : { action: "update", userId: user.id, data });
       close();
-      toast(isNew
-        ? (result.invited ? "Usuario creado. Le enviamos un email para que elija su contraseña." : "Usuario creado.")
-        : "Cambios guardados.");
+      toast(isNew ? t(result.invited ? "user.created_invited" : "user.created") : t("user.saved"));
       if (onSaved) await onSaved(result);
     } catch (err) {
-      errBox.innerHTML = `<div class="banner error">${esc(errMsg(err))}</div>`;
+      showErr(errMsg(err));
       btn.disabled = false;
     }
   });
@@ -375,18 +406,17 @@ function openUserForm({ user, roles, countries, country, onSaved }) {
 // Baja: elige el último mes que se le cobra. Conserva todo su historial.
 function openDeactivateForm(user, onDone) {
   const options = periodsBetween(user.start_month, addMonths(currentPeriod(), 2));
-  const { el, close } = openModal(`Dar de baja — ${user.full_name || user.email}`, `
-    <p>La cuenta queda bloqueada (no puede volver a ingresar) y se deja de cobrar después del mes que elijas.
-      Su historial de pagos se conserva y la podés reactivar cuando quieras.</p>
+  const { el, close } = openModal(t("user.deactivate_title", { name: user.full_name || user.email }), `
+    <p>${esc(t("user.deactivate_text"))}</p>
     <div class="field">
-      <label for="d-month">Último mes que se le cobra</label>
+      <label for="d-month">${esc(t("user.last_month"))}</label>
       <select class="input" id="d-month">
         ${options.map((p) => `<option value="${p}" ${p === currentPeriod() ? "selected" : ""}>${fmtPeriod(p)}</option>`).join("")}
       </select>
     </div>
     <div class="modal-foot">
-      <button type="button" class="btn ghost" id="d-cancel">Cancelar</button>
-      <button type="button" class="btn danger" id="d-ok">Dar de baja</button>
+      <button type="button" class="btn ghost" id="d-cancel">${esc(t("common.cancel"))}</button>
+      <button type="button" class="btn danger" id="d-ok">${esc(t("user.deactivate"))}</button>
     </div>`);
   el.querySelector("#d-cancel").addEventListener("click", close);
   el.querySelector("#d-ok").addEventListener("click", async (e) => {
@@ -394,7 +424,7 @@ function openDeactivateForm(user, onDone) {
     try {
       await callFunction("manage-user", { action: "deactivate", userId: user.id, data: { end_month: el.querySelector("#d-month").value } });
       close();
-      toast("Usuario dado de baja.");
+      toast(t("user.deactivated"));
       if (onDone) await onDone();
     } catch (err) {
       toast(errMsg(err), true);
@@ -404,13 +434,11 @@ function openDeactivateForm(user, onDone) {
 }
 
 async function reactivateUser(user, onDone) {
-  const msg = user.end_month
-    ? `¿Reactivar a ${user.full_name || user.email}? Vuelve a poder ingresar y se le cobra de nuevo desde el mes actual (los meses anteriores dejan de figurar como deuda).`
-    : `¿Activar a ${user.full_name || user.email}? Va a poder cargar pagos.`;
-  if (!confirm(msg)) return;
+  const name = user.full_name || user.email;
+  if (!confirm(t(user.end_month ? "user.confirm_reactivate" : "user.confirm_activate", { name }))) return;
   try {
     await callFunction("manage-user", { action: "reactivate", userId: user.id });
-    toast("Usuario activo.");
+    toast(t("user.activated"));
     if (onDone) await onDone();
   } catch (err) {
     toast(errMsg(err), true);
@@ -423,13 +451,32 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/*
+ * Mensaje de error traducido. Orden: código de la Netlify Function,
+ * hint "ikmf:<código>" de los triggers, códigos de Postgres / Auth
+ * conocidos y, si no, el texto original.
+ */
 function errMsg(e) {
-  return (e && (e.message || e.error_description)) || String(e);
+  if (!e) return t("err.generic");
+  const has = (key) => DICT.es[key] !== undefined;
+  if (e.code && has(`err.${e.code}`)) return t(`err.${e.code}`);
+  if (typeof e.hint === "string" && e.hint.startsWith("ikmf:") && has(`err.${e.hint.slice(5)}`)) {
+    return t(`err.${e.hint.slice(5)}`);
+  }
+  if (e.code === "23505") return t("err.duplicate_period");
+  if (e.code === "42501") return t("err.forbidden");
+  const msg = e.message || e.error_description || String(e);
+  if (/row-level security/i.test(msg)) return t("err.forbidden");
+  if (/banned/i.test(msg)) return t("login.banned");
+  if (/invalid login credentials/i.test(msg)) return t("login.invalid");
+  if (/email not confirmed/i.test(msg)) return t("login.not_confirmed");
+  if (/already registered|already exists/i.test(msg)) return t("err.email_exists");
+  return msg;
 }
 
 let toastTimer = null;
 function toast(msg, isError) {
-  document.querySelectorAll(".toast").forEach((t) => t.remove());
+  document.querySelectorAll(".toast").forEach((x) => x.remove());
   const el = document.createElement("div");
   el.className = "toast" + (isError ? " error" : "");
   el.textContent = msg;
@@ -449,7 +496,7 @@ function openModal(title, html, { wide } = {}) {
     <div class="modal ${wide ? "wide" : ""}" role="dialog" aria-modal="true">
       <div class="modal-head">
         <h2>${esc(title)}</h2>
-        <button type="button" class="modal-close" aria-label="Cerrar">×</button>
+        <button type="button" class="modal-close" aria-label="${esc(t("common.close"))}">×</button>
       </div>
       <div class="modal-body">${html}</div>
     </div>`;
@@ -463,10 +510,6 @@ function openModal(title, html, { wide } = {}) {
   document.addEventListener("keydown", onKey);
   document.body.appendChild(backdrop);
   return { el: backdrop.querySelector(".modal"), close };
-}
-
-function methodOptions(selected) {
-  return PAYMENT_METHODS.map((m) => `<option ${m === selected ? "selected" : ""}>${m}</option>`).join("");
 }
 
 function downloadCSV(filename, rows) {

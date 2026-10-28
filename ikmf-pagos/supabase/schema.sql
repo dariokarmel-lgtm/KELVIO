@@ -8,9 +8,11 @@
 --
 -- Roles:
 --   instructor → ve y carga SOLO sus propios pagos.
---   director   → ve y valida los pagos de los instructores de SU país.
---                Sus propios pagos los valida un admin.
---   admin      → ve todo, administra países y asigna roles.
+--   director   → ve los pagos y comprobantes de los instructores de SU país,
+--                gestiona a esos instructores y puede cargar pagos por ellos
+--                (quedan pendientes). NO aprueba ni rechaza.
+--   admin      → ve todo, es el ÚNICO que aprueba/rechaza pagos,
+--                administra países, directores y roles.
 --
 -- La seguridad real está acá (RLS + triggers), no en el frontend:
 -- aunque alguien manipule el JS, la base no le deja ver ni tocar
@@ -109,7 +111,7 @@ $$;
 
 -- ¿El usuario actual puede administrar al perfil `target`?
 -- Admin: a cualquiera. Director activo: solo a los instructores de su país
--- (un director nunca valida sus propios pagos ni los de otro director).
+-- (un director nunca gestiona su propia cuenta ni la de otro director).
 create or replace function public.can_manage(target uuid)
 returns boolean
 language sql stable security definer set search_path = public
@@ -215,41 +217,28 @@ create trigger profiles_guard
 -- ---------------------------------------------------------------------
 -- Reglas de negocio de payments
 -- ---------------------------------------------------------------------
+-- Solo un admin aprueba o rechaza pagos. El instructor (sus propios pagos)
+-- y el director (pagos de instructores de su país, ej. en efectivo) pueden
+-- cargar o corregir, pero todo lo que cargan queda "pending" hasta que un
+-- admin lo revise. Los mensajes llevan un `hint` (ikmf:<código>) que el
+-- frontend usa para mostrar el error traducido.
 create or replace function public.payments_guard()
 returns trigger
 language plpgsql security definer set search_path = public
 as $$
 declare
-  manager boolean := auth.uid() is null or public.can_manage(new.instructor_id);
+  reviewer boolean := auth.uid() is null or public.is_admin();
+  own      boolean := new.instructor_id = auth.uid();
 begin
   if tg_op = 'UPDATE' then
     new.instructor_id := old.instructor_id;
     new.created_by    := old.created_by;
     new.created_at    := old.created_at;
+    own := old.instructor_id = auth.uid();
   end if;
   new.updated_at := now();
 
-  if not manager then
-    -- El propio instructor cargando / corrigiendo su pago.
-    if not exists (select 1 from profiles where id = auth.uid() and active) then
-      raise exception 'Tu cuenta todavía no fue activada por el director de tu país.';
-    end if;
-    if tg_op = 'UPDATE' and old.status = 'approved' then
-      raise exception 'Este pago ya fue aprobado y no se puede modificar.';
-    end if;
-    if new.receipt_path is null or new.receipt_path = '' then
-      raise exception 'Tenés que adjuntar el comprobante de pago.';
-    end if;
-    if split_part(new.receipt_path, '/', 1) <> new.instructor_id::text then
-      raise exception 'Ruta de comprobante inválida.';
-    end if;
-    -- Todo lo que carga el instructor entra (o vuelve) a revisión.
-    new.status      := 'pending';
-    new.reviewed_by := null;
-    new.reviewed_at := null;
-    new.review_comment := case when tg_op = 'UPDATE' then old.review_comment else null end;
-  else
-    -- Director del país / admin validando o cargando un pago manual.
+  if reviewer then
     if tg_op = 'INSERT' or new.status is distinct from old.status then
       if new.status in ('approved', 'rejected') then
         new.reviewed_by := auth.uid();
@@ -260,9 +249,32 @@ begin
       end if;
     end if;
     if new.status = 'rejected' and coalesce(btrim(new.review_comment), '') = '' then
-      raise exception 'Indicá el motivo del rechazo.';
+      raise exception 'Indicá el motivo del rechazo.' using hint = 'ikmf:reject_reason';
+    end if;
+    return new;
+  end if;
+
+  -- Instructor (propio) o director del país (RLS ya validó que puede).
+  if tg_op = 'UPDATE' and old.status = 'approved' then
+    raise exception 'Este pago ya fue aprobado y no se puede modificar.' using hint = 'ikmf:already_approved';
+  end if;
+  if own then
+    if not exists (select 1 from profiles where id = auth.uid() and active) then
+      raise exception 'Tu cuenta todavía no fue activada por el director de tu país.' using hint = 'ikmf:not_active';
+    end if;
+    if coalesce(new.receipt_path, '') = '' then
+      raise exception 'Tenés que adjuntar el comprobante de pago.' using hint = 'ikmf:receipt_required';
     end if;
   end if;
+  if coalesce(new.receipt_path, '') <> ''
+     and split_part(new.receipt_path, '/', 1) <> new.instructor_id::text then
+    raise exception 'Ruta de comprobante inválida.' using hint = 'ikmf:receipt_path';
+  end if;
+
+  new.status      := 'pending';
+  new.reviewed_by := null;
+  new.reviewed_at := null;
+  new.review_comment := case when tg_op = 'UPDATE' then old.review_comment else null end;
   return new;
 end;
 $$;

@@ -1,0 +1,24 @@
+# IKMF Pagos — Apache (cPanel)
+
+# Forzar HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Pasar el header Authorization a PHP (algunos hostings lo descartan)
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# No servir archivos internos del proyecto
+RewriteRule ^(supabase|\.git)(/|$) - [F,L]
+<FilesMatch "(\.(md|sql|example\.php|sh)|^config\.php)$">
+  Require all denied
+</FilesMatch>
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+  Header always set X-Frame-Options "DENY"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+</IfModule>

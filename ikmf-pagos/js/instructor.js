@@ -1,10 +1,12 @@
 /*
  * Pantalla del instructor: estado mes por mes de sus cuotas y carga de
  * pagos con comprobante. Cualquier carga o corrección queda "En revisión"
- * hasta que el director del país la aprueba (lo fuerza la base, no el JS).
+ * hasta que un admin la aprueba (lo fuerza la base, no el JS).
  */
 
 let payments = []; // pagos propios
+
+function $(id) { return document.getElementById(id); }
 
 function paymentFor(period) {
   return payments.find((p) => p.period === period);
@@ -31,19 +33,15 @@ async function loadPayments() {
 function render() {
   const fee = myFee();
   $("fee-line").textContent = ME.country
-    ? `${ME.country.name} · Cuota mensual: ${fmtMoney(fee, myCurrency())} · Desde ${fmtPeriod(ME.start_month)}`
-    : "Sin país asignado";
+    ? t("inst.fee_line", { country: ME.country.name, fee: fmtMoney(fee, myCurrency()), month: fmtPeriod(ME.start_month) })
+    : t("inst.no_country");
 
   const banner = $("banner");
-  if (ME.end_month) {
-    banner.innerHTML = `<div class="banner warn">Tu cuenta está dada de baja desde ${fmtPeriod(addMonths(ME.end_month, 1))}.</div>`;
-  } else if (!ME.country) {
-    banner.innerHTML = `<div class="banner warn">Tu cuenta no tiene país asignado. Contactá a un administrador.</div>`;
-  } else if (!ME.active) {
-    banner.innerHTML = `<div class="banner warn">Tu cuenta está <strong>pendiente de activación</strong>. El director de ${esc(ME.country.name)} tiene que activarla antes de que puedas cargar pagos.</div>`;
-  } else {
-    banner.innerHTML = "";
-  }
+  let warn = "";
+  if (ME.end_month) warn = t("inst.banner_left", { month: fmtPeriod(addMonths(ME.end_month, 1)) });
+  else if (!ME.country) warn = t("inst.banner_no_country");
+  else if (!ME.active) warn = t("inst.banner_pending", { country: ME.country.name });
+  banner.innerHTML = warn ? `<div class="banner warn">${esc(warn)}</div>` : "";
   $("new-payment-btn").disabled = !ME.active;
 
   // Meses desde el inicio hasta el actual, más cualquier pago adelantado.
@@ -64,45 +62,43 @@ function render() {
 
     let detail = "";
     if (p) {
-      detail = [p.method, p.reference].filter(Boolean).map(esc).join(" · ");
+      detail = [p.method ? methodLabel(p.method) : "", p.reference].filter(Boolean).map(esc).join(" · ");
       if (p.status === "rejected" && p.review_comment) {
-        detail += `<div class="sub" style="color:var(--color-red)">Motivo: ${esc(p.review_comment)}</div>`;
+        detail += `<div class="sub" style="color:var(--color-red)">${esc(t("inst.reason", { text: p.review_comment }))}</div>`;
       } else if (p.status === "approved" && p.reviewed_at) {
-        detail += `<div class="sub">Validado el ${fmtDate(p.reviewed_at)}</div>`;
+        detail += `<div class="sub">${esc(t("inst.validated_on", { date: fmtDate(p.reviewed_at) }))}</div>`;
       }
     }
 
     let actions = "";
     if (p && p.receipt_path) {
-      actions += `<button class="btn sm ghost" data-receipt="${esc(p.receipt_path)}">Ver comprobante</button> `;
+      actions += `<button class="btn sm ghost" data-receipt="${esc(p.receipt_path)}">${esc(t("inst.view_receipt"))}</button> `;
     }
     if (ME.active) {
-      if (!p) actions += `<button class="btn sm primary" data-pay="${period}">Cargar pago</button>`;
-      else if (p.status === "rejected") actions += `<button class="btn sm primary" data-edit="${p.id}">Volver a enviar</button>`;
-      else if (p.status === "pending") actions += `<button class="btn sm ghost" data-edit="${p.id}">Editar</button>`;
+      if (!p) actions += `<button class="btn sm primary" data-pay="${period}">${esc(t("inst.pay"))}</button>`;
+      else if (p.status === "rejected") actions += `<button class="btn sm primary" data-edit="${p.id}">${esc(t("inst.resend"))}</button>`;
+      else if (p.status === "pending") actions += `<button class="btn sm ghost" data-edit="${p.id}">${esc(t("common.edit"))}</button>`;
     }
 
     return `<tr>
       <td><strong>${fmtPeriod(period)}</strong></td>
       <td>${chip(status)}</td>
-      <td class="num">${p ? fmtMoney(p.amount, p.currency) : `<span class="sub">${fmtMoney(myFee(), myCurrency())}</span>`}</td>
+      <td class="num">${p ? fmtMoney(p.amount, p.currency) : `<span class="sub">${fmtMoney(fee, myCurrency())}</span>`}</td>
       <td>${p ? fmtDate(p.paid_on) : "—"}</td>
       <td>${detail || '<span class="sub">—</span>'}</td>
       <td class="actions">${actions}</td>
     </tr>`;
   });
 
-  $("months-body").innerHTML = rows.join("") || `<tr><td colspan="6" class="empty">Todavía no hay meses para mostrar.</td></tr>`;
+  $("months-body").innerHTML = rows.join("") || `<tr><td colspan="6" class="empty">${esc(t("inst.no_months"))}</td></tr>`;
 
   $("stats").innerHTML = `
-    <div class="stat green"><div class="label">Meses aprobados</div><div class="value">${approved}</div></div>
-    <div class="stat yellow"><div class="label">En revisión</div><div class="value">${pending}</div></div>
-    <div class="stat red"><div class="label">Adeudados</div><div class="value">${due}</div></div>
-    <div class="stat red"><div class="label">Deuda estimada</div><div class="value">${fmtMoney(due * fee, myCurrency())}</div></div>
-    <div class="stat"><div class="label">Total pagado</div><div class="value">${fmtMoney(paidTotal, myCurrency())}</div></div>`;
+    <div class="stat green"><div class="label">${esc(t("stat.approved_months"))}</div><div class="value">${approved}</div></div>
+    <div class="stat yellow"><div class="label">${esc(t("stat.in_review"))}</div><div class="value">${pending}</div></div>
+    <div class="stat red"><div class="label">${esc(t("stat.owed_months"))}</div><div class="value">${due}</div></div>
+    <div class="stat red"><div class="label">${esc(t("stat.est_debt"))}</div><div class="value">${fmtMoney(due * fee, myCurrency())}</div></div>
+    <div class="stat"><div class="label">${esc(t("stat.total_paid"))}</div><div class="value">${fmtMoney(paidTotal, myCurrency())}</div></div>`;
 }
-
-function $(id) { return document.getElementById(id); }
 
 /*
  * Formulario de carga / corrección. `existing` es el pago a editar
@@ -116,51 +112,53 @@ function openPaymentForm({ existing, period } = {}) {
   const selected = existing ? existing.period : period || options.find((p) => p <= now && !paymentFor(p)) || now;
 
   if (!existing && options.length === 0) {
-    toast("No tenés meses pendientes de carga.");
+    toast(t("inst.no_pending_months"));
     return;
   }
 
-  const { el, close } = openModal(existing ? `Corregir pago — ${fmtPeriod(existing.period)}` : "Cargar pago", `
+  const submitLabel = t(existing ? "inst.submit_fix" : "inst.submit_new");
+  const { el, close } = openModal(existing ? t("inst.form_title_fix", { month: fmtPeriod(existing.period) }) : t("inst.form_title_new"), `
     ${existing && existing.status === "rejected" && existing.review_comment
-      ? `<div class="banner error">Rechazado: ${esc(existing.review_comment)}</div>` : ""}
+      ? `<div class="banner error">${esc(t("inst.rejected", { text: existing.review_comment }))}</div>` : ""}
     <form id="pay-form" novalidate>
       <div class="grid-2">
         <div class="field">
-          <label for="p-period">Mes que pagás</label>
+          <label for="p-period">${esc(t("inst.f_month"))}</label>
           <select class="input" id="p-period" ${existing ? "disabled" : ""}>
             ${options.map((p) => `<option value="${p}" ${p === selected ? "selected" : ""}>${fmtPeriod(p)}</option>`).join("")}
           </select>
         </div>
         <div class="field">
-          <label for="p-amount">Monto (${esc(myCurrency())})</label>
+          <label for="p-amount">${esc(t("inst.f_amount", { cur: myCurrency() }))}</label>
           <input class="input" id="p-amount" type="number" min="0.01" step="0.01" value="${existing ? existing.amount : myFee() || ""}" required />
         </div>
         <div class="field">
-          <label for="p-date">Fecha de pago</label>
+          <label for="p-date">${esc(t("inst.f_date"))}</label>
           <input class="input" id="p-date" type="date" value="${existing ? existing.paid_on : todayISO()}" max="${todayISO()}" required />
         </div>
         <div class="field">
-          <label for="p-method">Medio de pago</label>
-          <select class="input" id="p-method">${methodOptions(existing ? existing.method : "Transferencia")}</select>
+          <label for="p-method">${esc(t("inst.f_method"))}</label>
+          <select class="input" id="p-method">${methodOptions(existing ? existing.method : "transfer")}</select>
         </div>
       </div>
       <div class="field">
-        <label for="p-ref">N° de operación / referencia (opcional)</label>
+        <label for="p-ref">${esc(t("inst.f_ref"))}</label>
         <input class="input" id="p-ref" value="${esc(existing ? existing.reference : "")}" />
       </div>
       <div class="field">
-        <label for="p-file">Comprobante (imagen o PDF, máx. 5 MB)${existing && existing.receipt_path ? " — dejalo vacío para mantener el actual" : ""}</label>
+        <label for="p-file">${esc(t("inst.f_file"))}</label>
         <input class="input" id="p-file" type="file" accept="image/*,application/pdf" />
+        ${existing && existing.receipt_path ? `<span class="sub">${esc(t("inst.f_file_keep"))}</span>` : ""}
       </div>
       <div class="field">
-        <label for="p-note">Nota para el director (opcional)</label>
+        <label for="p-note">${esc(t("inst.f_note"))}</label>
         <textarea class="input" id="p-note">${esc(existing ? existing.note : "")}</textarea>
       </div>
       <div id="form-error"></div>
       <div class="modal-foot">
-        ${existing && existing.status === "pending" ? `<button type="button" class="btn ghost" id="p-delete" style="margin-right:auto">Eliminar</button>` : ""}
-        <button type="button" class="btn ghost" id="p-cancel">Cancelar</button>
-        <button type="submit" class="btn primary" id="p-submit">${existing ? "Enviar a revisión" : "Enviar pago"}</button>
+        ${existing && existing.status === "pending" ? `<button type="button" class="btn ghost push-start" id="p-delete">${esc(t("common.delete"))}</button>` : ""}
+        <button type="button" class="btn ghost" id="p-cancel">${esc(t("common.cancel"))}</button>
+        <button type="submit" class="btn primary" id="p-submit">${esc(submitLabel)}</button>
       </div>
     </form>`);
 
@@ -169,11 +167,11 @@ function openPaymentForm({ existing, period } = {}) {
   const del = el.querySelector("#p-delete");
   if (del) {
     del.addEventListener("click", async () => {
-      if (!confirm("¿Eliminar este pago cargado?")) return;
+      if (!confirm(t("inst.confirm_delete"))) return;
       const { error } = await sb.from("payments").delete().eq("id", existing.id);
       if (error) return toast(errMsg(error), true);
       close();
-      toast("Pago eliminado.");
+      toast(t("inst.deleted"));
       await refresh();
     });
   }
@@ -189,8 +187,8 @@ function openPaymentForm({ existing, period } = {}) {
     const paidOn = el.querySelector("#p-date").value;
     const file = el.querySelector("#p-file").files[0];
 
-    if (!(amount > 0)) return showErr("Ingresá un monto válido.");
-    if (!paidOn) return showErr("Indicá la fecha de pago.");
+    if (!(amount > 0)) return showErr(t("inst.err_amount"));
+    if (!paidOn) return showErr(t("inst.err_date"));
     if (file || !existing || !existing.receipt_path) {
       const v = validateReceipt(file);
       if (v) return showErr(v);
@@ -198,7 +196,7 @@ function openPaymentForm({ existing, period } = {}) {
 
     const btn = el.querySelector("#p-submit");
     btn.disabled = true;
-    btn.textContent = "Enviando…";
+    btn.textContent = t("inst.sending");
     try {
       const receipt_path = file ? await uploadReceipt(ME.id, periodVal, file) : existing.receipt_path;
       const row = {
@@ -215,12 +213,12 @@ function openPaymentForm({ existing, period } = {}) {
         : await sb.from("payments").insert({ ...row, instructor_id: ME.id, period: periodVal });
       if (error) throw error;
       close();
-      toast("Pago enviado. Queda en revisión hasta que el director lo valide.");
+      toast(t("inst.sent"));
       await refresh();
     } catch (err) {
       showErr(errMsg(err));
       btn.disabled = false;
-      btn.textContent = existing ? "Enviar a revisión" : "Enviar pago";
+      btn.textContent = submitLabel;
     }
   });
 }
@@ -231,11 +229,11 @@ async function refresh() {
 }
 
 document.addEventListener("click", (e) => {
-  const t = e.target.closest("button");
-  if (!t) return;
-  if (t.dataset.receipt) openReceipt(t.dataset.receipt);
-  if (t.dataset.pay) openPaymentForm({ period: t.dataset.pay });
-  if (t.dataset.edit) openPaymentForm({ existing: payments.find((p) => p.id === t.dataset.edit) });
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.receipt) openReceipt(b.dataset.receipt);
+  if (b.dataset.pay) openPaymentForm({ period: b.dataset.pay });
+  if (b.dataset.edit) openPaymentForm({ existing: payments.find((p) => p.id === b.dataset.edit) });
 });
 
 (async function init() {

@@ -3,50 +3,50 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Administración — IKMF Pagos</title>
+<title data-i18n="title.admin">Administración — IKMF Pagos</title>
 <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-page="admin">
 <main class="container">
   <div class="page-head">
     <div>
-      <h1>Administración</h1>
-      <p>Alta, edición y baja de directores e instructores; países y cuotas por defecto.</p>
+      <h1 data-i18n="adm.title">Administración</h1>
+      <p data-i18n="adm.subtitle"></p>
     </div>
   </div>
 
   <div class="tabs" id="tabs">
-    <button type="button" data-tab="users" class="active">Usuarios</button>
-    <button type="button" data-tab="countries">Países</button>
+    <button type="button" data-tab="users" class="active" data-i18n="adm.tab_users">Usuarios</button>
+    <button type="button" data-tab="countries" data-i18n="adm.tab_countries">Países</button>
   </div>
 
   <section id="tab-users">
     <div class="card">
       <div class="card-head">
         <div class="row">
-          <input class="input" id="u-search" placeholder="Buscar por nombre o email…" style="width:240px" />
+          <input class="input" id="u-search" data-i18n-ph="adm.search_ph" style="width:240px" />
           <select class="input" id="u-country" style="width:auto"></select>
           <select class="input" id="u-role" style="width:auto">
-            <option value="">Todos los roles</option>
-            <option value="instructor">Instructores</option>
-            <option value="director">Directores</option>
-            <option value="admin">Administradores</option>
+            <option value="" data-i18n="adm.all_roles">Todos los roles</option>
+            <option value="instructor" data-i18n="adm.instructors">Instructores</option>
+            <option value="director" data-i18n="adm.directors">Directores</option>
+            <option value="admin" data-i18n="adm.admins">Administradores</option>
           </select>
         </div>
         <div class="row">
-          <label class="sub row" style="gap:6px"><input type="checkbox" id="u-left" /> Mostrar bajas</label>
+          <label class="sub row" style="gap:6px"><input type="checkbox" id="u-left" /> <span data-i18n="adm.show_left">Mostrar bajas</span></label>
           <span class="sub" id="u-count"></span>
-          <button class="btn primary" id="new-user-btn" type="button">+ Nuevo usuario</button>
+          <button class="btn primary" id="new-user-btn" type="button" data-i18n="adm.new_user">+ Nuevo usuario</button>
         </div>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Usuario</th>
-              <th>País</th>
-              <th>Rol</th>
-              <th>Estado</th>
+              <th data-i18n="col.user">Usuario</th>
+              <th data-i18n="common.country">País</th>
+              <th data-i18n="common.role">Rol</th>
+              <th data-i18n="col.status">Estado</th>
               <th></th>
             </tr>
           </thead>
@@ -58,16 +58,16 @@
 
   <section id="tab-countries" class="hidden">
     <div class="card">
-      <div class="card-head"><h2>Países</h2></div>
+      <div class="card-head"><h2 data-i18n="adm.countries_title">Países</h2></div>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Nombre</th>
-              <th>Código</th>
-              <th>Moneda</th>
-              <th>Cuota por defecto</th>
-              <th>Director(es)</th>
+              <th data-i18n="col.name">Nombre</th>
+              <th data-i18n="col.code">Código</th>
+              <th data-i18n="col.currency">Moneda</th>
+              <th data-i18n="col.default_fee">Cuota por defecto</th>
+              <th data-i18n="col.directors">Director(es)</th>
               <th></th>
             </tr>
           </thead>
@@ -76,13 +76,13 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><h2>Agregar país</h2></div>
+      <div class="card-head"><h2 data-i18n="adm.add_country">Agregar país</h2></div>
       <form id="c-form" class="row" novalidate>
-        <input class="input" id="c-name" placeholder="Nombre (ej. Perú)" style="width:200px" />
-        <input class="input" id="c-code" placeholder="Código ISO (PE)" maxlength="2" style="width:140px" />
-        <input class="input" id="c-currency" placeholder="Moneda (PEN)" maxlength="3" style="width:140px" />
-        <input class="input" id="c-fee" type="number" min="0" step="0.01" placeholder="Cuota" style="width:120px" />
-        <button class="btn primary" type="submit">Agregar</button>
+        <input class="input" id="c-name" data-i18n-ph="adm.ph_name" style="width:200px" />
+        <input class="input" id="c-code" data-i18n-ph="adm.ph_code" maxlength="2" style="width:140px" />
+        <input class="input" id="c-currency" data-i18n-ph="adm.ph_currency" maxlength="3" style="width:140px" />
+        <input class="input" id="c-fee" type="number" min="0" step="0.01" data-i18n-ph="adm.ph_fee" style="width:120px" />
+        <button class="btn primary" type="submit" data-i18n="adm.add">Agregar</button>
       </form>
     </div>
   </section>
@@ -90,6 +90,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/common.js"></script>
 <script src="js/admin.js"></script>
 </body>
