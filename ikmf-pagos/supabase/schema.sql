@@ -56,8 +56,16 @@ create table if not exists public.profiles (
               check (extract(day from start_month) = 1),
   -- Un instructor nuevo queda inactivo hasta que el director de su país lo activa.
   active      boolean not null default false,
+  -- Baja: último mes que se le cobra. null = no está dado de baja.
+  -- Las altas, ediciones de email y bajas se hacen con la Netlify Function
+  -- manage-user (necesita la service_role para tocar auth.users).
+  end_month   date check (end_month is null or extract(day from end_month) = 1),
   created_at  timestamptz not null default now()
 );
+
+-- Para proyectos creados con una versión anterior de este archivo.
+alter table public.profiles add column if not exists end_month date
+  check (end_month is null or extract(day from end_month) = 1);
 
 create index if not exists profiles_country_idx on public.profiles(country_id);
 
@@ -184,6 +192,10 @@ begin
   new.role       := old.role;
   new.created_at := old.created_at;
   new.country_id := old.country_id;
+  new.end_month  := old.end_month;  -- la baja solo se da por manage-user
+  if old.end_month is not null then
+    new.active := old.active;       -- y la reactivación también
+  end if;
 
   if old.id = auth.uid() then
     -- Un usuario editando su propio perfil solo puede tocar nombre y teléfono.

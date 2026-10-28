@@ -1,6 +1,7 @@
 /*
  * Ingreso, registro y recuperación de contraseña.
- * Modos: login | signup | forgot | recovery (al volver del mail de reseteo).
+ * Modos: login | signup | forgot | recovery (al volver del mail de reseteo
+ * o del mail de invitación cuando un director/admin crea la cuenta).
  */
 
 let mode = "login";
@@ -33,7 +34,7 @@ function setMode(next) {
     forgot: "Enviar link de recuperación",
     recovery: "Guardar nueva contraseña",
   }[next];
-  document.querySelector('.password-field label').textContent = next === "recovery" ? "Nueva contraseña" : "Contraseña";
+  document.querySelector('.password-field label').textContent = next === "recovery" ? "Elegí tu contraseña" : "Contraseña";
 }
 
 async function loadCountries() {
@@ -102,7 +103,9 @@ async function onSubmit(e) {
       await goHome();
     }
   } catch (err) {
-    showMsg(errMsg(err));
+    showMsg(/banned/i.test(errMsg(err))
+      ? "Tu cuenta está dada de baja. Si es un error, contactá al director de tu país."
+      : errMsg(err));
   } finally {
     btn.disabled = false;
   }
@@ -124,7 +127,14 @@ sb.auth.onAuthStateChange((event) => {
   loadCountries();
   // Si ya hay sesión (y no es un reseteo de contraseña), entrar directo.
   const { data: { session } } = await sb.auth.getSession();
-  if (session && !recovering && !location.hash.includes("type=recovery")) {
+  const fromEmailLink = /type=(recovery|invite)/.test(INITIAL_HASH);
+  if (session && fromEmailLink) {
+    recovering = true;
+    setMode("recovery");
+    if (INITIAL_HASH.includes("type=invite")) showMsg("¡Bienvenido/a! Elegí una contraseña para tu cuenta.", "info");
+    return;
+  }
+  if (session && !recovering) {
     try { await goHome(); } catch { /* perfil inaccesible: se queda en el login */ }
   }
 })();

@@ -3,6 +3,10 @@
  * perfil del usuario, navegación, formato de fechas/montos, comprobantes.
  */
 
+// Se guarda antes de crear el cliente, que limpia el hash al leer la sesión
+// (lo usa login.js para detectar links de invitación / recuperación).
+const INITIAL_HASH = location.hash;
+
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
@@ -16,6 +20,7 @@ const STATUS_LABELS = {
   upcoming: "A pagar",
   inactive: "Inactivo",
 };
+const ACCOUNT_LABELS = { active: "Activo", pending: "Pendiente de activación", left: "Baja" };
 const PAYMENT_METHODS = ["Transferencia", "Depósito", "Mercado Pago", "PayPal", "Efectivo", "Otro"];
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const RECEIPT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"];
@@ -165,6 +170,19 @@ function chip(status) {
   return `<span class="chip ${status}">${STATUS_LABELS[status]}</span>`;
 }
 
+// Estado de la cuenta: activa, pendiente de activación (se registró sola) o de baja.
+function accountState(profile) {
+  if (profile.end_month) return "left";
+  return profile.active ? "active" : "pending";
+}
+
+function accountChip(profile) {
+  const st = accountState(profile);
+  const cls = { active: "approved", pending: "pending", left: "inactive" }[st];
+  const extra = st === "left" ? ` desde ${fmtPeriod(addMonths(profile.end_month, 1))}` : "";
+  return `<span class="chip ${cls}">${ACCOUNT_LABELS[st]}${extra}</span>`;
+}
+
 /* ---------- Comprobantes ---------- */
 
 function validateReceipt(file) {
@@ -217,6 +235,185 @@ async function renderReceipt(container, path) {
     }
   } catch (e) {
     container.innerHTML = `<p class="empty">No se pudo cargar el comprobante: ${esc(errMsg(e))}</p>`;
+  }
+}
+
+/* ---------- Netlify Functions ---------- */
+
+async function callFunction(name, body) {
+  const { data: { session } } = await sb.auth.getSession();
+  const res = await fetch(`/.netlify/functions/${name}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
+    body: JSON.stringify(body || {}),
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch { data = { error: text }; }
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+/* ---------- Alta / edición / baja de usuarios ---------- */
+
+/*
+ * Formulario de alta o edición de un usuario (instructor o director).
+ *   user       → perfil a editar; sin user es un alta.
+ *   roles      → roles elegibles (ej. ["instructor", "director"]); null = solo instructor.
+ *   countries  → lista de países elegibles; null = el país queda fijo (director).
+ *   country    → país fijo / por defecto (para la cuota por defecto y la moneda).
+ *   onSaved(result)
+ */
+function openUserForm({ user, roles, countries, country, onSaved }) {
+  const isNew = !user;
+  const roleList = roles || ["instructor"];
+  const currentCountry = user ? user.country_id : country ? country.id : "";
+  const countryFee = (id) => {
+    const c = (countries || []).find((x) => x.id === id) || country;
+    return c ? `${c.default_fee} ${c.currency}` : "";
+  };
+
+  const { el, close } = openModal(isNew ? "Nuevo usuario" : `Editar — ${user.full_name || user.email}`, `
+    <form id="u-form" novalidate>
+      <div class="grid-2">
+        <div class="field">
+          <label for="uf-name">Nombre y apellido</label>
+          <input class="input" id="uf-name" value="${esc(user ? user.full_name : "")}" />
+        </div>
+        <div class="field">
+          <label for="uf-email">Email</label>
+          <input class="input" id="uf-email" type="email" value="${esc(user ? user.email : "")}" />
+        </div>
+        <div class="field">
+          <label for="uf-phone">Teléfono</label>
+          <input class="input" id="uf-phone" type="tel" value="${esc(user ? user.phone : "")}" />
+        </div>
+        ${roleList.length > 1 ? `
+        <div class="field">
+          <label for="uf-role">Rol</label>
+          <select class="input" id="uf-role">
+            ${roleList.map((r) => `<option value="${r}" ${user && user.role === r ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
+          </select>
+        </div>` : ""}
+        ${countries ? `
+        <div class="field">
+          <label for="uf-country">País</label>
+          <select class="input" id="uf-country">
+            <option value="">Elegí…</option>
+            ${countries.map((c) => `<option value="${c.id}" ${c.id === currentCountry ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
+          </select>
+        </div>` : ""}
+        <div class="field">
+          <label for="uf-fee">Cuota propia (vacío = la del país)</label>
+          <input class="input" id="uf-fee" type="number" min="0" step="0.01" value="${user && user.monthly_fee !== null ? user.monthly_fee : ""}" placeholder="${esc(countryFee(currentCountry))}" />
+        </div>
+        <div class="field">
+          <label for="uf-start">Cobrar desde</label>
+          <input class="input" id="uf-start" type="month" value="${(user ? user.start_month : currentPeriod()).slice(0, 7)}" />
+        </div>
+      </div>
+      ${isNew ? `
+      <div class="field">
+        <label for="uf-password">Contraseña inicial (opcional)</label>
+        <input class="input" id="uf-password" type="text" autocomplete="off" placeholder="Si la dejás vacía, le llega un email de invitación" />
+      </div>` : ""}
+      <div id="uf-error"></div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" id="uf-cancel">Cancelar</button>
+        <button type="submit" class="btn primary" id="uf-submit">${isNew ? "Crear" : "Guardar cambios"}</button>
+      </div>
+    </form>`);
+
+  const countrySel = el.querySelector("#uf-country");
+  if (countrySel) {
+    countrySel.addEventListener("change", () => { el.querySelector("#uf-fee").placeholder = countryFee(countrySel.value); });
+  }
+  el.querySelector("#uf-cancel").addEventListener("click", close);
+  el.querySelector("#u-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const val = (id) => { const x = el.querySelector(id); return x ? x.value.trim() : undefined; };
+    const data = {
+      full_name: val("#uf-name"),
+      email: val("#uf-email"),
+      phone: val("#uf-phone"),
+      monthly_fee: val("#uf-fee"),
+      start_month: val("#uf-start") ? `${val("#uf-start")}-01` : undefined,
+    };
+    if (roleList.length > 1) data.role = val("#uf-role");
+    else if (isNew) data.role = roleList[0];
+    if (countries) data.country_id = val("#uf-country");
+    else if (isNew && country) data.country_id = country.id;
+    if (isNew && val("#uf-password")) data.password = val("#uf-password");
+
+    const errBox = el.querySelector("#uf-error");
+    errBox.innerHTML = "";
+    if (!data.full_name) return (errBox.innerHTML = `<div class="banner error">Completá el nombre.</div>`);
+    if (!data.email) return (errBox.innerHTML = `<div class="banner error">Completá el email.</div>`);
+    if (countries && !data.country_id) return (errBox.innerHTML = `<div class="banner error">Elegí el país.</div>`);
+
+    const btn = el.querySelector("#uf-submit");
+    btn.disabled = true;
+    try {
+      const result = await callFunction("manage-user", isNew
+        ? { action: "create", data }
+        : { action: "update", userId: user.id, data });
+      close();
+      toast(isNew
+        ? (result.invited ? "Usuario creado. Le enviamos un email para que elija su contraseña." : "Usuario creado.")
+        : "Cambios guardados.");
+      if (onSaved) await onSaved(result);
+    } catch (err) {
+      errBox.innerHTML = `<div class="banner error">${esc(errMsg(err))}</div>`;
+      btn.disabled = false;
+    }
+  });
+}
+
+// Baja: elige el último mes que se le cobra. Conserva todo su historial.
+function openDeactivateForm(user, onDone) {
+  const options = periodsBetween(user.start_month, addMonths(currentPeriod(), 2));
+  const { el, close } = openModal(`Dar de baja — ${user.full_name || user.email}`, `
+    <p>La cuenta queda bloqueada (no puede volver a ingresar) y se deja de cobrar después del mes que elijas.
+      Su historial de pagos se conserva y la podés reactivar cuando quieras.</p>
+    <div class="field">
+      <label for="d-month">Último mes que se le cobra</label>
+      <select class="input" id="d-month">
+        ${options.map((p) => `<option value="${p}" ${p === currentPeriod() ? "selected" : ""}>${fmtPeriod(p)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn ghost" id="d-cancel">Cancelar</button>
+      <button type="button" class="btn danger" id="d-ok">Dar de baja</button>
+    </div>`);
+  el.querySelector("#d-cancel").addEventListener("click", close);
+  el.querySelector("#d-ok").addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try {
+      await callFunction("manage-user", { action: "deactivate", userId: user.id, data: { end_month: el.querySelector("#d-month").value } });
+      close();
+      toast("Usuario dado de baja.");
+      if (onDone) await onDone();
+    } catch (err) {
+      toast(errMsg(err), true);
+      e.target.disabled = false;
+    }
+  });
+}
+
+async function reactivateUser(user, onDone) {
+  const msg = user.end_month
+    ? `¿Reactivar a ${user.full_name || user.email}? Vuelve a poder ingresar y se le cobra de nuevo desde el mes actual (los meses anteriores dejan de figurar como deuda).`
+    : `¿Activar a ${user.full_name || user.email}? Va a poder cargar pagos.`;
+  if (!confirm(msg)) return;
+  try {
+    await callFunction("manage-user", { action: "reactivate", userId: user.id });
+    toast("Usuario activo.");
+    if (onDone) await onDone();
+  } catch (err) {
+    toast(errMsg(err), true);
   }
 }
 

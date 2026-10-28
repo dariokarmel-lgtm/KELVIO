@@ -1,0 +1,8 @@
+{
+  "name": "ikmf-pagos",
+  "private": true,
+  "description": "IKMF Pagos — sin build step para el frontend; estas dependencias las usan las Netlify Functions de netlify/functions/.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

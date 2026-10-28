@@ -35,7 +35,9 @@ function render() {
     : "Sin país asignado";
 
   const banner = $("banner");
-  if (!ME.country) {
+  if (ME.end_month) {
+    banner.innerHTML = `<div class="banner warn">Tu cuenta está dada de baja desde ${fmtPeriod(addMonths(ME.end_month, 1))}.</div>`;
+  } else if (!ME.country) {
     banner.innerHTML = `<div class="banner warn">Tu cuenta no tiene país asignado. Contactá a un administrador.</div>`;
   } else if (!ME.active) {
     banner.innerHTML = `<div class="banner warn">Tu cuenta está <strong>pendiente de activación</strong>. El director de ${esc(ME.country.name)} tiene que activarla antes de que puedas cargar pagos.</div>`;
@@ -46,7 +48,8 @@ function render() {
 
   // Meses desde el inicio hasta el actual, más cualquier pago adelantado.
   const now = currentPeriod();
-  const lastPeriod = payments.reduce((max, p) => (p.period > max ? p.period : max), now);
+  const lastBillable = ME.end_month && ME.end_month < now ? ME.end_month : now;
+  const lastPeriod = payments.reduce((max, p) => (p.period > max ? p.period : max), lastBillable);
   const periods = periodsBetween(ME.start_month, lastPeriod);
   payments.forEach((p) => { if (!periods.includes(p.period)) periods.push(p.period); });
   periods.sort().reverse();

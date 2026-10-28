@@ -1,7 +1,7 @@
 /*
- * Administración global: usuarios (rol, país, activo) y países
- * (moneda, cuota por defecto). Solo accesible para role = admin; la
- * base rechaza estos cambios para cualquier otro rol.
+ * Administración global: alta / edición / baja de directores e
+ * instructores (vía la function manage-user) y países (moneda, cuota por
+ * defecto). Solo accesible para role = admin.
  */
 
 let countries = [];
@@ -37,26 +37,50 @@ function renderUsers() {
   const q = $("u-search").value.trim().toLowerCase();
   const cf = $("u-country").value;
   const rf = $("u-role").value;
+  const showLeft = $("u-left").checked;
   const list = users.filter((u) =>
     (!q || (u.full_name || "").toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
     (!cf || (cf === "none" ? !u.country_id : u.country_id === cf)) &&
-    (!rf || u.role === rf));
+    (!rf || u.role === rf) &&
+    (showLeft || accountState(u) !== "left"));
 
   $("u-count").textContent = `${list.length} de ${users.length}`;
-  const countryOpts = (sel) => `<option value="">— Sin país —</option>` +
-    countries.map((c) => `<option value="${c.id}" ${c.id === sel ? "selected" : ""}>${esc(c.name)}</option>`).join("");
-  const roleOpts = (sel) => Object.entries(ROLE_LABELS)
-    .map(([k, v]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${v}</option>`).join("");
 
-  $("users-body").innerHTML = list.map((u) => `
-    <tr data-user="${u.id}">
+  $("users-body").innerHTML = list.map((u) => {
+    let actions = "";
+    if (u.role === "admin") {
+      actions = `<span class="sub">Se gestiona por SQL</span>`;
+    } else {
+      const st = accountState(u);
+      if (st === "pending") actions += `<button class="btn sm success" data-activate="${u.id}">Activar</button> `;
+      actions += `<button class="btn sm ghost" data-edit-user="${u.id}">Editar</button> `;
+      actions += st === "left"
+        ? `<button class="btn sm ghost" data-activate="${u.id}">Reactivar</button>`
+        : `<button class="btn sm ghost" data-deactivate="${u.id}">Dar de baja</button>`;
+    }
+    return `<tr>
       <td><strong>${esc(u.full_name || "(sin nombre)")}</strong>${u.id === ME.id ? ' <span class="sub">(vos)</span>' : ""}
         <div class="sub">${esc(u.email)}${u.phone ? " · " + esc(u.phone) : ""}</div></td>
-      <td><select class="input sm f-country">${countryOpts(u.country_id)}</select></td>
-      <td><select class="input sm f-role" ${u.id === ME.id ? "disabled" : ""}>${roleOpts(u.role)}</select></td>
-      <td><input type="checkbox" class="f-active" ${u.active ? "checked" : ""} ${u.id === ME.id ? "disabled" : ""} aria-label="Activo" /></td>
-      <td class="actions"><button class="btn sm dark" data-save-user="${u.id}">Guardar</button></td>
-    </tr>`).join("") || `<tr><td colspan="5" class="empty">No hay usuarios con ese filtro.</td></tr>`;
+      <td>${esc(countryName(u.country_id))}</td>
+      <td>${ROLE_LABELS[u.role]}</td>
+      <td>${accountChip(u)}</td>
+      <td class="actions">${actions}</td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="5" class="empty">No hay usuarios con ese filtro.</td></tr>`;
+}
+
+function userById(id) {
+  return users.find((u) => u.id === id);
+}
+
+function openAdminUserForm(user) {
+  openUserForm({
+    user,
+    roles: ["instructor", "director"],
+    countries,
+    country: null,
+    onSaved: refresh,
+  });
 }
 
 function renderCountries() {
@@ -68,7 +92,7 @@ function renderCountries() {
       <td><input class="input sm f-currency" value="${esc(c.currency)}" maxlength="3" style="width:70px" /></td>
       <td><input class="input sm f-fee" type="number" min="0" step="0.01" value="${c.default_fee}" style="width:110px" /></td>
       <td>${directors.length
-        ? directors.map((d) => `${esc(d.full_name || d.email)}${d.active ? "" : ' <span class="chip inactive">Inactivo</span>'}`).join("<br>")
+        ? directors.map((d) => `${esc(d.full_name || d.email)}${d.active ? "" : " " + accountChip(d)}`).join("<br>")
         : '<span class="sub">Sin director — asignalo desde Usuarios</span>'}</td>
       <td class="actions">
         <button class="btn sm dark" data-save-country="${c.id}">Guardar</button>
@@ -91,20 +115,6 @@ async function refresh() {
     toast(errMsg(e), true);
   }
   renderAll();
-}
-
-async function saveUser(id) {
-  const tr = document.querySelector(`tr[data-user="${id}"]`);
-  const row = { country_id: tr.querySelector(".f-country").value || null };
-  if (id !== ME.id) {
-    row.role = tr.querySelector(".f-role").value;
-    row.active = tr.querySelector(".f-active").checked;
-    if (row.role === "director" && !row.country_id) return toast("Un director necesita un país asignado.", true);
-  }
-  const { error } = await sb.from("profiles").update(row).eq("id", id);
-  if (error) return toast(errMsg(error), true);
-  toast("Usuario actualizado.");
-  await refresh();
 }
 
 function countryRow(prefix, root) {
@@ -155,7 +165,9 @@ document.addEventListener("click", (e) => {
   const t = e.target.closest("button");
   if (!t) return;
   if (t.dataset.tab) setTab(t.dataset.tab);
-  if (t.dataset.saveUser) saveUser(t.dataset.saveUser);
+  if (t.dataset.editUser) openAdminUserForm(userById(t.dataset.editUser));
+  if (t.dataset.deactivate) openDeactivateForm(userById(t.dataset.deactivate), refresh);
+  if (t.dataset.activate) reactivateUser(userById(t.dataset.activate), refresh);
   if (t.dataset.saveCountry) saveCountry(t.dataset.saveCountry);
   if (t.dataset.deleteCountry) deleteCountry(t.dataset.deleteCountry);
 });
@@ -163,7 +175,8 @@ document.addEventListener("click", (e) => {
 (async function init() {
   if (!(await requireRole(["admin"]))) return;
 
-  ["u-search", "u-country", "u-role"].forEach((id) => $(id).addEventListener("input", renderUsers));
+  ["u-search", "u-country", "u-role", "u-left"].forEach((id) => $(id).addEventListener("input", renderUsers));
+  $("new-user-btn").addEventListener("click", () => openAdminUserForm(null));
 
   $("c-form").addEventListener("submit", async (e) => {
     e.preventDefault();

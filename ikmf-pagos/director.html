@@ -82,10 +82,15 @@
 
   <!-- Instructores -->
   <section id="tab-instructors" class="hidden">
-    <div class="banner info">
-      Los instructores se registran solos eligiendo su país. Activalos acá para que puedan cargar pagos.
-      Si la cuota queda vacía se usa la cuota por defecto del país (<strong id="default-fee"></strong>).
+    <div class="row" style="margin-bottom:16px">
+      <button class="btn primary" id="new-user-btn" type="button">+ Nuevo instructor</button>
+      <span class="spacer"></span>
+      <label class="sub row" style="gap:6px"><input type="checkbox" id="show-left" /> Mostrar dados de baja</label>
     </div>
+    <p class="sub" style="margin:-4px 0 16px">
+      Si la cuota queda vacía se usa la cuota por defecto del país (<strong id="default-fee"></strong>).
+      Los que se registran solos quedan pendientes hasta que los actives.
+    </p>
     <div class="card">
       <div class="table-wrap">
         <table>
@@ -93,8 +98,8 @@
             <tr>
               <th>Instructor</th>
               <th>Contacto</th>
-              <th>Activo</th>
-              <th>Cuota propia</th>
+              <th>Estado</th>
+              <th class="num">Cuota</th>
               <th>Cobrar desde</th>
               <th class="num">Adeuda</th>
               <th></th>

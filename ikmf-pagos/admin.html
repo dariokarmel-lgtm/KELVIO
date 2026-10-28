@@ -11,7 +11,7 @@
   <div class="page-head">
     <div>
       <h1>Administración</h1>
-      <p>Países, cuotas por defecto, directores y roles.</p>
+      <p>Alta, edición y baja de directores e instructores; países y cuotas por defecto.</p>
     </div>
   </div>
 
@@ -33,7 +33,11 @@
             <option value="admin">Administradores</option>
           </select>
         </div>
-        <span class="sub" id="u-count"></span>
+        <div class="row">
+          <label class="sub row" style="gap:6px"><input type="checkbox" id="u-left" /> Mostrar bajas</label>
+          <span class="sub" id="u-count"></span>
+          <button class="btn primary" id="new-user-btn" type="button">+ Nuevo usuario</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -42,7 +46,7 @@
               <th>Usuario</th>
               <th>País</th>
               <th>Rol</th>
-              <th>Activo</th>
+              <th>Estado</th>
               <th></th>
             </tr>
           </thead>

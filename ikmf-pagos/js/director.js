@@ -27,10 +27,18 @@ function currency() {
   return state.country ? state.country.currency : "USD";
 }
 
+// ¿Se le cobra `period` a esta persona? (alta, no pendiente, no de baja para ese mes)
+function billable(p, period) {
+  if (p.start_month > period) return false;
+  if (p.end_month) return period <= p.end_month;
+  return p.active;
+}
+
 // Meses vencidos (anteriores al actual) sin pago aprobado ni en revisión.
 function dueMonths(p) {
-  if (!p.active) return [];
-  const last = addMonths(currentPeriod(), -1);
+  if (!p.active && !p.end_month) return []; // pendiente de activación
+  let last = addMonths(currentPeriod(), -1);
+  if (p.end_month && p.end_month < last) last = p.end_month;
   if (p.start_month > last) return [];
   return periodsBetween(p.start_month, last).filter((period) => {
     const pay = paymentOf(p.id, period);
@@ -90,7 +98,7 @@ function renderAll() {
   const pendingCount = state.payments.filter((p) => p.status === "pending").length;
   $("pending-badge").textContent = pendingCount;
   $("pending-badge").classList.toggle("hidden", !pendingCount);
-  const inactiveCount = state.people.filter((p) => !p.active).length;
+  const inactiveCount = state.people.filter((p) => accountState(p) === "pending").length;
   $("inactive-badge").textContent = inactiveCount;
   $("inactive-badge").classList.toggle("hidden", !inactiveCount);
 
@@ -105,20 +113,20 @@ function renderMonth() {
   const isCurrentOrFuture = period >= currentPeriod();
 
   const rows = state.people
-    .filter((p) => p.active && p.start_month <= period)
+    .filter((p) => billable(p, period) || paymentOf(p.id, period))
     .map((p) => ({ p, pay: paymentOf(p.id, period) }));
 
   const counts = { approved: 0, pending: 0, rejected: 0, missing: 0 };
   let collected = 0, expected = 0;
   rows.forEach(({ p, pay }) => {
-    expected += feeFor(p, state.country);
+    if (billable(p, period)) expected += feeFor(p, state.country);
     if (!pay) counts.missing++;
     else counts[pay.status]++;
     if (pay && pay.status === "approved") collected += Number(pay.amount);
   });
 
   $("month-stats").innerHTML = `
-    <div class="stat"><div class="label">Instructores activos</div><div class="value">${rows.length}</div></div>
+    <div class="stat"><div class="label">Instructores</div><div class="value">${rows.length}</div></div>
     <div class="stat green"><div class="label">Aprobados</div><div class="value">${counts.approved}</div></div>
     <div class="stat yellow"><div class="label">Por validar</div><div class="value">${counts.pending}</div></div>
     <div class="stat red"><div class="label">${isCurrentOrFuture ? "Sin pagar aún" : "Adeudan"}</div><div class="value">${counts.missing + counts.rejected}</div></div>
@@ -147,7 +155,7 @@ function renderMonth() {
       <td class="num">${due ? `<span style="color:var(--color-red);font-weight:700">${due}</span>` : "0"}</td>
       <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">${state.country ? "No hay instructores activos para este mes." : "Elegí un país."}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">${state.country ? "No hay instructores a cobrar este mes." : "Elegí un país."}</td></tr>`;
 }
 
 function renderPending() {
@@ -169,40 +177,56 @@ function renderPending() {
   }).join("") || `<tr><td colspan="7" class="empty">No hay comprobantes pendientes. 🎉</td></tr>`;
 }
 
+// Lo que puede hacer el usuario actual sobre una persona del listado.
+function canManagePerson(p) {
+  return ME.role === "admin" || p.role === "instructor";
+}
+
 function renderInstructors() {
-  $("instructors-body").innerHTML = state.people.map((p) => {
+  const showLeft = $("show-left").checked;
+  const order = { pending: 0, active: 1, left: 2 };
+  const list = state.people
+    .filter((p) => showLeft || accountState(p) !== "left")
+    .sort((a, b) => order[accountState(a)] - order[accountState(b)]
+      || (a.full_name || "").localeCompare(b.full_name || ""));
+
+  $("instructors-body").innerHTML = list.map((p) => {
     const due = dueMonths(p);
-    return `<tr data-person="${p.id}">
+    const st = accountState(p);
+    let actions = "";
+    if (canManagePerson(p)) {
+      if (st === "pending") actions += `<button class="btn sm success" data-activate="${p.id}">Activar</button> `;
+      actions += `<button class="btn sm ghost" data-edit-user="${p.id}">Editar</button> `;
+      actions += st === "left"
+        ? `<button class="btn sm ghost" data-activate="${p.id}">Reactivar</button>`
+        : `<button class="btn sm ghost" data-deactivate="${p.id}">Dar de baja</button>`;
+    }
+    return `<tr>
       <td><strong>${esc(p.full_name || "(sin nombre)")}</strong>
-        <div class="sub">Registrado ${fmtDate(p.created_at)}${p.role === "director" ? " · Director" : ""}</div></td>
+        <div class="sub">${p.role === "director" ? "Director · " : ""}Registrado ${fmtDate(p.created_at)}</div></td>
       <td>${esc(p.email)}<div class="sub">${esc(p.phone || "")}</div></td>
-      <td><input type="checkbox" class="f-active" ${p.active ? "checked" : ""} aria-label="Activo" /></td>
-      <td><input class="input sm f-fee" type="number" min="0" step="0.01" style="width:110px"
-            value="${p.monthly_fee ?? ""}" placeholder="${state.country ? state.country.default_fee : ""}" /></td>
-      <td><input class="input sm f-start" type="month" style="width:150px" value="${p.start_month.slice(0, 7)}" /></td>
+      <td>${accountChip(p)}</td>
+      <td class="num">${fmtMoney(feeFor(p, state.country), currency())}${p.monthly_fee === null ? '<div class="sub">del país</div>' : ""}</td>
+      <td>${fmtPeriod(p.start_month)}</td>
       <td class="num">${due.length
         ? `<span style="color:var(--color-red);font-weight:700">${due.length} · ${fmtMoney(due.length * feeFor(p, state.country), currency())}</span>`
         : "Al día"}</td>
-      <td class="actions"><button class="btn sm dark" data-save="${p.id}">Guardar</button></td>
+      <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">${state.country ? "Todavía no hay instructores registrados en este país." : "Elegí un país."}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">${state.country ? "No hay instructores para mostrar." : "Elegí un país."}</td></tr>`;
+}
+
+function openPersonForm(p) {
+  openUserForm({
+    user: p,
+    roles: ME.role === "admin" ? ["instructor", "director"] : null,
+    countries: null,
+    country: state.country,
+    onSaved: refresh,
+  });
 }
 
 /* ---------- Acciones ---------- */
-
-async function saveInstructor(id) {
-  const tr = document.querySelector(`tr[data-person="${id}"]`);
-  const fee = tr.querySelector(".f-fee").value;
-  const start = tr.querySelector(".f-start").value;
-  const { error } = await sb.from("profiles").update({
-    active: tr.querySelector(".f-active").checked,
-    monthly_fee: fee === "" ? null : Number(fee),
-    start_month: start ? `${start}-01` : person(id).start_month,
-  }).eq("id", id);
-  if (error) return toast(errMsg(error), true);
-  toast("Instructor actualizado.");
-  await refresh();
-}
 
 function openReview(paymentId) {
   const pay = state.payments.find((p) => p.id === paymentId);
@@ -343,7 +367,7 @@ function exportMonth() {
   const period = state.period;
   const rows = [["Instructor", "Email", "Mes", "Estado", "Cuota", "Monto pagado", "Moneda", "Fecha de pago", "Medio", "Referencia", "Comentario"]];
   state.people
-    .filter((p) => p.active && p.start_month <= period)
+    .filter((p) => billable(p, period) || paymentOf(p.id, period))
     .forEach((p) => {
       const pay = paymentOf(p.id, period);
       rows.push([
@@ -368,7 +392,9 @@ document.addEventListener("click", (e) => {
   if (!t) return;
   if (t.dataset.review) openReview(t.dataset.review);
   if (t.dataset.manual) openManualPayment(t.dataset.manual, t.dataset.period);
-  if (t.dataset.save) saveInstructor(t.dataset.save);
+  if (t.dataset.editUser) openPersonForm(person(t.dataset.editUser));
+  if (t.dataset.deactivate) openDeactivateForm(person(t.dataset.deactivate), refresh);
+  if (t.dataset.activate) reactivateUser(person(t.dataset.activate), refresh);
   if (t.dataset.tab) setTab(t.dataset.tab);
 });
 
@@ -413,6 +439,9 @@ document.addEventListener("click", (e) => {
   $("prev-month").addEventListener("click", () => { state.period = addMonths(state.period, -1); renderMonth(); });
   $("next-month").addEventListener("click", () => { state.period = addMonths(state.period, 1); renderMonth(); });
   $("export-btn").addEventListener("click", exportMonth);
+  $("show-left").addEventListener("change", renderInstructors);
+  $("new-user-btn").addEventListener("click", () => openPersonForm(null));
+  if (ME.role === "admin") $("new-user-btn").textContent = "+ Nuevo instructor / director";
 
   await refresh();
 })();
