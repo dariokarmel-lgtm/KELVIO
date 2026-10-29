@@ -365,6 +365,8 @@ const DICT = {
     "col.debt": "Deuda",
     "col.last_paid": "Último pago",
     "col.reviewed_on": "Aprobado el",
+    "dir.title_all": "Todos los países",
+    "dir.fee_note_all": "Si la cuota de una persona queda vacía se usa la cuota por defecto de su país. Los que se registran solos quedan pendientes hasta que los actives.",
   },
 
   en: {
@@ -714,6 +716,8 @@ const DICT = {
     "col.debt": "Debt",
     "col.last_paid": "Last payment",
     "col.reviewed_on": "Approved on",
+    "dir.title_all": "All countries",
+    "dir.fee_note_all": "If a person's fee is left empty, their country's default fee is used. People who sign up on their own stay pending until you activate them.",
   },
 
   he: {
@@ -1063,6 +1067,8 @@ const DICT = {
     "col.debt": "חוב",
     "col.last_paid": "תשלום אחרון",
     "col.reviewed_on": "אושר בתאריך",
+    "dir.title_all": "כל המדינות",
+    "dir.fee_note_all": "אם דמי המנוי של אדם נשארים ריקים, נעשה שימוש בברירת המחדל של המדינה שלו. מי שנרשם בעצמו ממתין עד שתפעילו אותו.",
   },
 
   fr: {
@@ -1412,6 +1418,8 @@ const DICT = {
     "col.debt": "Dette",
     "col.last_paid": "Dernier paiement",
     "col.reviewed_on": "Approuvé le",
+    "dir.title_all": "Tous les pays",
+    "dir.fee_note_all": "Si la cotisation d'une personne reste vide, la cotisation par défaut de son pays est utilisée. Les personnes inscrites par elles-mêmes restent en attente jusqu'à ce que vous les activiez.",
   },
 
   de: {
@@ -1761,6 +1769,8 @@ const DICT = {
     "col.debt": "Schulden",
     "col.last_paid": "Letzte Zahlung",
     "col.reviewed_on": "Genehmigt am",
+    "dir.title_all": "Alle Länder",
+    "dir.fee_note_all": "Bleibt der Beitrag einer Person leer, gilt der Standardbeitrag ihres Landes. Wer sich selbst registriert, bleibt ausstehend, bis du die Person aktivierst.",
   },
 
   it: {
@@ -2110,6 +2120,8 @@ const DICT = {
     "col.debt": "Debito",
     "col.last_paid": "Ultimo pagamento",
     "col.reviewed_on": "Approvato il",
+    "dir.title_all": "Tutti i paesi",
+    "dir.fee_note_all": "Se la quota di una persona resta vuota si usa la quota predefinita del suo paese. Chi si registra da solo resta in attesa finché non lo attivi.",
   },
 };
 

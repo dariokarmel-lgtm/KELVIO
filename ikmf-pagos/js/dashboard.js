@@ -35,26 +35,7 @@ function redAmount(text) {
   return `<span style="color:var(--color-red);font-weight:700">${text}</span>`;
 }
 
-// Suma de montos agrupada por moneda → "25.000 ARS · 1.500 UYU".
-function sumByCurrency(items) {
-  const totals = {};
-  items.forEach(({ amount, currency }) => { totals[currency] = (totals[currency] || 0) + Number(amount); });
-  const parts = Object.entries(totals).map(([cur, v]) => fmtMoney(v, cur));
-  return parts.length ? parts.join(" · ") : "—";
-}
-
 /* ---------- Carga de datos ---------- */
-
-// PostgREST devuelve como máximo 1000 filas por pedido: se pagina.
-async function fetchAll(query) {
-  const out = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await query().range(from, from + 999);
-    if (error) throw error;
-    out.push(...data);
-    if (data.length < 1000) return out;
-  }
-}
 
 async function load() {
   const [countries, people, payments] = await Promise.all([

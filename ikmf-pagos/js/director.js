@@ -2,13 +2,13 @@
  * Panel de país (director / admin): pagos del mes, comprobantes pendientes
  * y gestión de instructores. Un director solo ve su país (RLS) y NO aprueba
  * ni rechaza: eso lo hace únicamente un admin (lo fuerza la base). El admin
- * elige el país con el selector y ve los pendientes de todos los países.
+ * ve todos los países juntos por defecto y puede filtrar uno con el selector.
  */
 
 const state = {
   countries: [],
-  country: null,
-  people: [],         // perfiles del país que este usuario puede ver
+  country: null,      // null = todos los países (solo admin)
+  people: [],         // perfiles que este usuario puede ver (del país o de todos)
   payments: [],       // pagos de esos perfiles
   globalPending: [],  // admin: pendientes de todos los países (con su instructor)
   period: currentPeriod(),
@@ -33,12 +33,23 @@ function countryById(id) {
   return state.countries.find((c) => c.id === id) || null;
 }
 
-function currency() {
-  return state.country ? state.country.currency : "USD";
+function allCountries() {
+  return isAdmin() && !state.country;
+}
+
+// País de una persona (en la vista "todos" cada fila tiene el suyo).
+function countryOf(p) {
+  return countryById(p.country_id) || state.country;
+}
+
+function currencyOf(p) {
+  const c = countryOf(p);
+  return c ? c.currency : "USD";
 }
 
 function pendingList() {
-  return isAdmin() ? state.globalPending : state.payments.filter((p) => p.status === "pending");
+  if (!isAdmin()) return state.payments.filter((p) => p.status === "pending");
+  return state.globalPending.filter((pay) => !state.country || (pay.instructor && pay.instructor.country_id === state.country.id));
 }
 
 function dueMonths(p) {
@@ -58,21 +69,24 @@ async function loadCountries() {
 }
 
 async function loadCountryData() {
-  if (!state.country) {
+  if (!state.country && !isAdmin()) {
     state.people = [];
     state.payments = [];
     return;
   }
-  const { data: people, error } = await sb
-    .from("profiles")
-    .select("*")
-    .eq("country_id", state.country.id)
-    .neq("role", "admin")
-    .neq("id", ME.id)
-    .order("full_name");
-  if (error) throw error;
+  const people = await fetchAll(() => {
+    let q = sb.from("profiles").select("*").neq("role", "admin").neq("id", ME.id).order("full_name");
+    if (state.country) q = q.eq("country_id", state.country.id);
+    return q;
+  });
   state.people = people;
 
+  if (allCountries()) {
+    // Admin, todos los países: RLS ya deja ver todo; se excluyen los del admin.
+    state.payments = (await fetchAll(() => sb.from("payments").select("*").order("created_at")))
+      .filter((p) => p.instructor_id !== ME.id);
+    return;
+  }
   const ids = people.map((p) => p.id);
   const all = [];
   for (let i = 0; i < ids.length; i += 100) {
@@ -106,8 +120,12 @@ async function refresh() {
 /* ---------- Render ---------- */
 
 function renderAll() {
-  $("title").textContent = state.country ? t("dir.title_country", { country: state.country.name }) : t("dir.title");
-  $("fee-note").textContent = t("dir.fee_note", { fee: state.country ? fmtMoney(state.country.default_fee, currency()) : "—" });
+  $("title").textContent = state.country
+    ? t("dir.title_country", { country: state.country.name })
+    : t(allCountries() ? "dir.title_all" : "dir.title");
+  $("fee-note").textContent = state.country
+    ? t("dir.fee_note", { fee: fmtMoney(state.country.default_fee, state.country.currency) })
+    : t("dir.fee_note_all");
 
   const pendingCount = pendingList().length;
   $("pending-badge").textContent = pendingCount;
@@ -131,13 +149,14 @@ function renderMonth() {
     .map((p) => ({ p, pay: paymentOf(p.id, period) }));
 
   const counts = { approved: 0, pending: 0, rejected: 0, missing: 0 };
-  let collected = 0, expected = 0;
+  const collected = [], expected = [];
   rows.forEach(({ p, pay }) => {
-    if (billable(p, period)) expected += feeFor(p, state.country);
+    if (billable(p, period)) expected.push({ amount: feeFor(p, countryOf(p)), currency: currencyOf(p) });
     if (!pay) counts.missing++;
     else counts[pay.status]++;
-    if (pay && pay.status === "approved") collected += Number(pay.amount);
+    if (pay && pay.status === "approved") collected.push(pay);
   });
+  const money = (items) => `<span style="font-size:${allCountries() ? ".7em" : "1em"}">${sumByCurrency(items)}</span>`;
 
   const stat = (cls, label, value) =>
     `<div class="stat ${cls}"><div class="label">${esc(t(label))}</div><div class="value">${value}</div></div>`;
@@ -146,8 +165,8 @@ function renderMonth() {
     stat("green", "stat.approved", counts.approved) +
     stat("yellow", "stat.to_validate", counts.pending) +
     stat("red", isCurrentOrFuture ? "stat.unpaid_yet" : "stat.owe", counts.missing + counts.rejected) +
-    stat("green", "stat.collected", fmtMoney(collected, currency())) +
-    stat("", "stat.expected", fmtMoney(expected, currency()));
+    stat("green", "stat.collected", money(collected)) +
+    stat("", "stat.expected", money(expected));
 
   const order = { pending: 0, rejected: 1, due: 2, upcoming: 2, approved: 3 };
   rows.sort((a, b) => order[monthStatus(a.pay, period)] - order[monthStatus(b.pay, period)]
@@ -164,15 +183,22 @@ function renderMonth() {
       actions = `<button class="btn sm ghost" data-manual="${p.id}" data-period="${period}">${esc(t("dir.register"))}</button>`;
     }
     return `<tr>
-      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong><div class="sub">${esc(p.email)}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div></td>
+      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong><div class="sub">${countryTag(p)}${esc(p.email)}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div></td>
       <td>${chip(status)}</td>
-      <td class="num">${fmtMoney(feeFor(p, state.country), currency())}</td>
+      <td class="num">${fmtMoney(feeFor(p, countryOf(p)), currencyOf(p))}</td>
       <td class="num">${pay ? fmtMoney(pay.amount, pay.currency) : "—"}</td>
       <td>${pay ? fmtDate(pay.paid_on) : "—"}</td>
       <td class="num">${due ? redAmount(due) : "0"}</td>
       <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">${esc(t(state.country ? "dir.no_rows_month" : "dir.choose_country"))}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">${esc(t(state.country || allCountries() ? "dir.no_rows_month" : "dir.choose_country"))}</td></tr>`;
+}
+
+// En la vista de todos los países, cada fila muestra su país.
+function countryTag(p) {
+  if (!allCountries()) return "";
+  const c = countryById(p.country_id);
+  return `<strong>${esc(c ? c.name : "—")}</strong> · `;
 }
 
 function renderPending() {
@@ -224,24 +250,26 @@ function renderInstructors() {
     }
     return `<tr>
       <td><strong>${esc(p.full_name || t("common.no_name"))}</strong>
-        <div class="sub">${p.role === "director" ? esc(t("dir.director_tag")) + " · " : ""}${esc(t("dir.registered", { date: fmtDate(p.created_at) }))}</div></td>
+        <div class="sub">${countryTag(p)}${p.role === "director" ? esc(t("dir.director_tag")) + " · " : ""}${esc(t("dir.registered", { date: fmtDate(p.created_at) }))}</div></td>
       <td><span dir="ltr">${esc(p.email)}</span><div class="sub" dir="ltr">${esc(p.phone || "")}</div></td>
       <td>${accountChip(p)}</td>
-      <td class="num">${fmtMoney(feeFor(p, state.country), currency())}${p.monthly_fee === null ? `<div class="sub">${esc(t("dir.country_fee"))}</div>` : ""}</td>
+      <td class="num">${fmtMoney(feeFor(p, countryOf(p)), currencyOf(p))}${p.monthly_fee === null ? `<div class="sub">${esc(t("dir.country_fee"))}</div>` : ""}</td>
       <td>${fmtPeriod(p.start_month)}</td>
       <td class="num">${due.length
-        ? redAmount(`${due.length} · ${fmtMoney(due.length * feeFor(p, state.country), currency())}`)
+        ? redAmount(`${due.length} · ${fmtMoney(due.length * feeFor(p, countryOf(p)), currencyOf(p))}`)
         : esc(t("dir.up_to_date"))}</td>
       <td class="actions">${actions}</td>
     </tr>`;
-  }).join("") || `<tr><td colspan="7" class="empty">${esc(t(state.country ? "dir.no_instructors" : "dir.choose_country"))}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="empty">${esc(t(state.country || allCountries() ? "dir.no_instructors" : "dir.choose_country"))}</td></tr>`;
 }
 
+// El admin elige el país en el formulario (por defecto, el filtrado); el
+// director siempre da de alta en su país.
 function openPersonForm(p) {
   openUserForm({
     user: p,
     roles: isAdmin() ? ["instructor", "director"] : null,
-    countries: null,
+    countries: isAdmin() ? state.countries : null,
     country: state.country,
     onSaved: refresh,
   });
@@ -253,7 +281,7 @@ function openReview(paymentId) {
   const pay = state.payments.find((p) => p.id === paymentId) || state.globalPending.find((p) => p.id === paymentId);
   if (!pay) return;
   const p = pay.instructor || person(pay.instructor_id) || {};
-  openPaymentReview({ pay, person: p, country: countryById(p.country_id) || state.country, onDone: refresh });
+  openPaymentReview({ pay, person: p, country: countryOf(p), onDone: refresh });
 }
 
 /*
@@ -273,8 +301,8 @@ function openManualPayment(personId, period) {
           <input class="input" value="${fmtPeriod(period)}" disabled />
         </div>
         <div class="field">
-          <label for="m-amount">${esc(t("man.amount", { cur: currency() }))}</label>
-          <input class="input" id="m-amount" type="number" min="0.01" step="0.01" value="${feeFor(p, state.country) || ""}" />
+          <label for="m-amount">${esc(t("man.amount", { cur: currencyOf(p) }))}</label>
+          <input class="input" id="m-amount" type="number" min="0.01" step="0.01" value="${feeFor(p, countryOf(p)) || ""}" />
         </div>
         <div class="field">
           <label for="m-date">${esc(t("man.date"))}</label>
@@ -317,7 +345,7 @@ function openManualPayment(personId, period) {
         instructor_id: p.id,
         period,
         amount,
-        currency: currency(),
+        currency: currencyOf(p),
         paid_on: el.querySelector("#m-date").value || todayISO(),
         method: el.querySelector("#m-method").value,
         note: el.querySelector("#m-note").value.trim() || null,
@@ -338,7 +366,7 @@ function openManualPayment(personId, period) {
 function exportMonth() {
   const period = state.period;
   const rows = [[
-    "col.instructor", "common.email", "col.month", "col.status", "col.fee", "col.amount_paid",
+    "col.instructor", "common.email", "common.country", "col.month", "col.status", "col.fee", "col.amount_paid",
     "col.currency", "col.payment_date", "col.method", "col.reference", "col.comment",
   ].map((k) => t(k))];
   state.people
@@ -346,12 +374,12 @@ function exportMonth() {
     .forEach((p) => {
       const pay = paymentOf(p.id, period);
       rows.push([
-        p.full_name, p.email, period.slice(0, 7), statusLabel(monthStatus(pay, period)),
-        feeFor(p, state.country), pay ? pay.amount : "", currency(),
+        p.full_name, p.email, (countryOf(p) || {}).name || "", period.slice(0, 7), statusLabel(monthStatus(pay, period)),
+        feeFor(p, countryOf(p)), pay ? pay.amount : "", currencyOf(p),
         pay ? pay.paid_on : "", pay ? methodLabel(pay.method) : "", pay ? pay.reference : "", pay ? pay.review_comment : "",
       ]);
     });
-  downloadCSV(`ikmf-${state.country ? state.country.code : "country"}-${period.slice(0, 7)}.csv`, rows);
+  downloadCSV(`ikmf-${state.country ? state.country.code : "todos"}-${period.slice(0, 7)}.csv`, rows);
 }
 
 function setTab(tab) {
@@ -394,16 +422,15 @@ document.addEventListener("click", (e) => {
   const sel = $("country-select");
   if (isAdmin()) {
     sel.classList.remove("hidden");
-    sel.innerHTML = state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
-    let saved = new URLSearchParams(location.search).get("country");
-    if (!saved) {
-      try { saved = localStorage.getItem("ikmf.country"); } catch { /* sin storage */ }
-    }
-    state.country = state.countries.find((c) => c.id === saved) || state.countries[0] || null;
-    if (state.country) sel.value = state.country.id;
+    // Por defecto, todos los países; ?country=<id> (desde el dashboard) filtra uno.
+    sel.innerHTML = `<option value="">${esc(t("adm.all_countries"))}</option>` +
+      state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+    const wanted = new URLSearchParams(location.search).get("country");
+    state.country = state.countries.find((c) => c.id === wanted) || null;
+    sel.value = state.country ? state.country.id : "";
     sel.addEventListener("change", () => {
-      state.country = state.countries.find((c) => c.id === sel.value);
-      try { localStorage.setItem("ikmf.country", sel.value); } catch { /* sin storage */ }
+      state.country = state.countries.find((c) => c.id === sel.value) || null;
+      history.replaceState(null, "", state.country ? `?country=${state.country.id}` : location.pathname);
       refresh();
     });
   } else {
