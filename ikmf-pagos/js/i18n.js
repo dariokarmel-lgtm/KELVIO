@@ -372,6 +372,8 @@ const DICT = {
     "user.resend_done_invite": "Le reenviamos la invitación a {email}.",
     "user.resend_done_reset": "Le enviamos a {email} un link para elegir una nueva contraseña.",
     "err.user_left": "La cuenta está dada de baja. Reactivala antes de reenviar el acceso.",
+    "dash.subtitle_dir": "Resumen de pagos de los instructores de tu país.",
+    "login.remember": "Recordarme",
   },
 
   en: {
@@ -728,6 +730,8 @@ const DICT = {
     "user.resend_done_invite": "We resent the invitation to {email}.",
     "user.resend_done_reset": "We sent {email} a link to choose a new password.",
     "err.user_left": "The account is deactivated. Reactivate it before resending access.",
+    "dash.subtitle_dir": "Payment summary for the instructors in your country.",
+    "login.remember": "Remember me",
   },
 
   he: {
@@ -1084,6 +1088,8 @@ const DICT = {
     "user.resend_done_invite": "שלחנו מחדש את ההזמנה ל־{email}.",
     "user.resend_done_reset": "שלחנו ל־{email} קישור לבחירת סיסמה חדשה.",
     "err.user_left": "החשבון מושבת. הפעילו אותו מחדש לפני שליחת הגישה.",
+    "dash.subtitle_dir": "סיכום התשלומים של המדריכים במדינה שלכם.",
+    "login.remember": "זכור אותי",
   },
 
   fr: {
@@ -1440,6 +1446,8 @@ const DICT = {
     "user.resend_done_invite": "Nous avons renvoyé l'invitation à {email}.",
     "user.resend_done_reset": "Nous avons envoyé à {email} un lien pour choisir un nouveau mot de passe.",
     "err.user_left": "Le compte est désactivé. Réactivez-le avant de renvoyer l'accès.",
+    "dash.subtitle_dir": "Résumé des paiements des instructeurs de votre pays.",
+    "login.remember": "Se souvenir de moi",
   },
 
   de: {
@@ -1796,6 +1804,8 @@ const DICT = {
     "user.resend_done_invite": "Wir haben die Einladung erneut an {email} gesendet.",
     "user.resend_done_reset": "Wir haben {email} einen Link zum Festlegen eines neuen Passworts gesendet.",
     "err.user_left": "Das Konto ist deaktiviert. Reaktiviere es, bevor du den Zugang erneut sendest.",
+    "dash.subtitle_dir": "Zahlungsübersicht der Instruktoren deines Landes.",
+    "login.remember": "Angemeldet bleiben",
   },
 
   it: {
@@ -2152,6 +2162,8 @@ const DICT = {
     "user.resend_done_invite": "Abbiamo reinviato l'invito a {email}.",
     "user.resend_done_reset": "Abbiamo inviato a {email} un link per scegliere una nuova password.",
     "err.user_left": "L'account è disattivato. Riattivalo prima di reinviare l'accesso.",
+    "dash.subtitle_dir": "Riepilogo dei pagamenti degli istruttori del tuo paese.",
+    "login.remember": "Ricordami",
   },
 };
 

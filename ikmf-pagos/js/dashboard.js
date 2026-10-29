@@ -1,7 +1,8 @@
 /*
- * Dashboard del admin (página de inicio del rol admin): KPIs del mes,
- * pagos por validar de todos los países, alertas de falta de pago, pagos
- * aprobados del mes y resumen por país. Se puede filtrar por país y mes.
+ * Dashboard (página de inicio del admin y del director): KPIs del mes,
+ * pagos por validar, alertas de falta de pago, pagos aprobados del mes y
+ * resumen por país. El admin ve todos los países y puede filtrar uno; el
+ * director ve solo el suyo (lo restringe RLS) y no aprueba pagos.
  */
 
 const state = {
@@ -13,6 +14,10 @@ const state = {
 };
 
 function $(id) { return document.getElementById(id); }
+
+function isAdmin() {
+  return ME.role === "admin";
+}
 
 function person(id) {
   return state.people.find((p) => p.id === id);
@@ -43,9 +48,11 @@ async function load() {
     fetchAll(() => sb.from("profiles").select("*").neq("role", "admin").order("full_name")),
     fetchAll(() => sb.from("payments").select("*").order("created_at")),
   ]);
-  state.countries = countries;
-  state.people = people;
-  state.payments = payments;
+  // El director solo recibe (por RLS) su país y sus instructores; sus propios
+  // pagos no se cuentan acá (los aprueba un admin).
+  state.countries = isAdmin() ? countries : countries.filter((c) => c.id === ME.country_id);
+  state.people = isAdmin() ? people : people.filter((p) => p.id !== ME.id);
+  state.payments = isAdmin() ? payments : payments.filter((p) => p.instructor_id !== ME.id);
   paymentIndex = new Map(payments.map((p) => [`${p.instructor_id}|${p.period}`, p]));
 }
 
@@ -117,7 +124,7 @@ function renderPending(list) {
       <td>${fmtPeriod(pay.period)}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
       <td>${fmtDate(pay.updated_at)}</td>
-      <td class="actions"><button class="btn sm primary" data-review="${pay.id}">${esc(t("dir.validate"))}</button></td>
+      <td class="actions"><button class="btn sm ${isAdmin() ? "primary" : "ghost"}" data-review="${pay.id}">${esc(t(isAdmin() ? "dir.validate" : "dir.view"))}</button></td>
     </tr>`;
   }).join("") || `<tr><td colspan="5" class="empty">${esc(t("dir.no_pending"))}</td></tr>`;
 }
@@ -223,7 +230,22 @@ document.addEventListener("click", (e) => {
 });
 
 (async function init() {
-  if (!(await requireRole(["admin"]))) return;
+  if (!(await requireRole(["admin", "director"]))) return;
+
+  if (!isAdmin()) {
+    if (!ME.active || !ME.country) {
+      document.querySelector("main").innerHTML =
+        `<div class="banner warn">${esc(t(ME.active ? "dir.no_country" : "dir.inactive_director"))}</div>`;
+      return;
+    }
+    // Director: su país fijo, sin selector ni resumen por país.
+    state.countryId = ME.country_id;
+    document.querySelector('[data-i18n="dash.title"]').textContent = t("dir.title_country", { country: ME.country.name });
+    document.querySelector('[data-i18n="dash.subtitle"]').textContent = t("dash.subtitle_dir");
+    document.querySelector('[data-i18n="dash.pending_title"]').textContent = t("dir.pending_title_dir");
+    $("country-filter").classList.add("hidden");
+    $("countries-card").classList.add("hidden");
+  }
 
   $("month-input").addEventListener("change", (e) => {
     if (e.target.value) { state.period = `${e.target.value}-01`; render(); }
@@ -234,6 +256,7 @@ document.addEventListener("click", (e) => {
 
   await refresh();
 
+  if (!isAdmin()) return;
   const sel = $("country-filter");
   sel.innerHTML = `<option value="">${esc(t("adm.all_countries"))}</option>` +
     state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");

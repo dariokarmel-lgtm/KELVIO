@@ -8,8 +8,59 @@
 // (lo usa login.js para detectar links de invitación / recuperación).
 const INITIAL_HASH = location.hash;
 
+/*
+ * "Recordarme": con la opción activa (por defecto) la sesión se guarda en
+ * localStorage y sobrevive al cierre del navegador; sin ella va a
+ * sessionStorage y se pierde al cerrarlo. La preferencia se lee en cada
+ * acceso, así que login.js puede cambiarla justo antes de ingresar.
+ */
+const REMEMBER_KEY = "ikmf_remember";
+const REMEMBER_EMAIL_KEY = "ikmf_remember_email";
+
+function safeStore(kind) {
+  try { return window[kind]; } catch { return null; }
+}
+
+function rememberMe() {
+  const ls = safeStore("localStorage");
+  try { return !ls || ls.getItem(REMEMBER_KEY) !== "0"; } catch { return true; }
+}
+
+function setRememberMe(on, email) {
+  const ls = safeStore("localStorage");
+  if (!ls) return;
+  try {
+    ls.setItem(REMEMBER_KEY, on ? "1" : "0");
+    if (on && email) ls.setItem(REMEMBER_EMAIL_KEY, email);
+    else ls.removeItem(REMEMBER_EMAIL_KEY);
+  } catch { /* sin storage */ }
+}
+
+function rememberedEmail() {
+  try { return safeStore("localStorage")?.getItem(REMEMBER_EMAIL_KEY) || ""; } catch { return ""; }
+}
+
+const authStorage = {
+  getItem(key) {
+    for (const kind of ["localStorage", "sessionStorage"]) {
+      try { const v = safeStore(kind)?.getItem(key); if (v != null) return v; } catch { /* sin storage */ }
+    }
+    return null;
+  },
+  setItem(key, value) {
+    const [keep, drop] = rememberMe() ? ["localStorage", "sessionStorage"] : ["sessionStorage", "localStorage"];
+    try { safeStore(keep)?.setItem(key, value); } catch { /* sin storage */ }
+    try { safeStore(drop)?.removeItem(key); } catch { /* sin storage */ }
+  },
+  removeItem(key) {
+    for (const kind of ["localStorage", "sessionStorage"]) {
+      try { safeStore(kind)?.removeItem(key); } catch { /* sin storage */ }
+    }
+  },
+};
+
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: authStorage },
 });
 
 // Se guarda la clave en payments.method; los valores viejos en español se mapean.
@@ -68,10 +119,9 @@ async function requireRole(roles) {
   return me;
 }
 
-// Página de inicio según el rol: el admin entra al dashboard general.
+// Página de inicio según el rol: admin y director entran al dashboard.
 function homeFor(profile) {
-  if (profile.role === "admin") return "dashboard.html";
-  return profile.role === "instructor" ? "instructor.html" : "director.html";
+  return profile.role === "instructor" ? "instructor.html" : "dashboard.html";
 }
 
 async function signOut() {
@@ -82,7 +132,7 @@ async function signOut() {
 function renderTopbar() {
   const page = document.body.dataset.page;
   const links = [];
-  if (ME.role === "admin") links.push({ href: "dashboard.html", key: "dashboard", label: t("nav.dashboard") });
+  if (ME.role === "admin" || ME.role === "director") links.push({ href: "dashboard.html", key: "dashboard", label: t("nav.dashboard") });
   links.push({ href: "instructor.html", key: "instructor", label: t("nav.my_payments") });
   if (ME.role === "director" || ME.role === "admin") {
     links.push({ href: "director.html", key: "director", label: t(ME.role === "admin" ? "nav.countries" : "nav.my_country") });

@@ -204,6 +204,8 @@ textarea.input { min-height: 72px; resize: vertical; }
 [dir="rtl"] .flip { transform: scaleX(-1); }
 
 /* ---------- Auth page ---------- */
+.remember-row { display: flex; align-items: center; gap: 8px; margin: -4px 0 16px; font-size: 14px; color: var(--color-text-muted); cursor: pointer; }
+.remember-row input { width: 16px; height: 16px; accent-color: var(--color-accent); }
 .auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
 .auth-card { width: 100%; max-width: 420px; }
 .auth-logo { text-align: center; margin-bottom: 20px; }

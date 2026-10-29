@@ -27,6 +27,7 @@ function setMode(next) {
   document.querySelector(".email-field").classList.toggle("hidden", next === "recovery");
   document.querySelector(".password-field").classList.toggle("hidden", next === "forgot");
   $("forgot-link").classList.toggle("hidden", next !== "login");
+  $("remember-row").classList.toggle("hidden", next !== "login" && next !== "signup");
   $("f-password").autocomplete = next === "login" ? "current-password" : "new-password";
   $("submit-btn").textContent = t({
     login: "login.btn_login",
@@ -62,6 +63,7 @@ async function onSubmit(e) {
   btn.disabled = true;
 
   try {
+    if (mode === "login" || mode === "signup") setRememberMe($("f-remember").checked, email);
     if (mode === "login") {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
@@ -125,6 +127,8 @@ sb.auth.onAuthStateChange((event) => {
   applyI18n();
   $("lang-slot").innerHTML = langSelectHTML("login-lang");
   bindLangSelect($("login-lang"));
+  $("f-remember").checked = rememberMe();
+  if (!$("f-email").value) $("f-email").value = rememberedEmail();
   loadCountries();
   // Si ya hay sesión (y no es un reseteo de contraseña), entrar directo.
   const { data: { session } } = await sb.auth.getSession();
