@@ -107,6 +107,10 @@ PHP 7.4+ con la extensión `curl`, estándar en cPanel).
 
    con la Project URL, la service_role key y `site_url`. Permisos recomendados: `600`.
 
+   En este hosting `public_html` apunta a `/home/ikmf/ikmf/public`, así que el endpoint
+   busca el archivo un nivel arriba de esa carpeta: hoy está en
+   `/home/ikmf/ikmf/ikmf-pagos-config.php` (fuera de la carpeta pública).
+
 Ejemplo por SSH desde la carpeta del repo:
 
 ```bash
