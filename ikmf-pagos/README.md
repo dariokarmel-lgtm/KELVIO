@@ -16,7 +16,7 @@ acceso y aprobación de pagos mediante comprobante. Disponible en **español, in
 |---|---|
 | **Instructor** | Ver su estado mes por mes (aprobado / en revisión / rechazado / adeuda), cargar el pago de un mes **subiendo el comprobante** (imagen o PDF, máx. 5 MB), corregir y re-enviar un pago rechazado. |
 | **Director de país** | Ver solo a los instructores de **su país**: pagos del mes con totales (recaudado vs. esperado), comprobantes, pagos pendientes, exportar CSV. **Crear, editar, activar, dar de baja y reactivar instructores** de su país. Puede registrar un pago en nombre de un instructor (ej. efectivo), que queda **pendiente de aprobación del admin**. **No aprueba ni rechaza pagos.** |
-| **Admin** | **Es el único que aprueba o rechaza pagos** (el rechazo exige motivo), con una bandeja de pendientes de **todos los países**. Ve cualquier país (selector arriba). En *Administración*: **crear, editar, dar de baja y reactivar directores e instructores** de cualquier país (incluye cambiar rol y país), y alta/edición de países (moneda + cuota por defecto). |
+| **Admin** | Entra a un **dashboard general**: pagos aprobados del mes, pagos por validar, alertas de falta de pago (quién debe, cuántos meses y cuánto) y resumen por país, con filtro por país y mes. **Es el único que aprueba o rechaza pagos** (el rechazo exige motivo), con una bandeja de pendientes de **todos los países**. Ve cualquier país (selector arriba). En *Administración*: **crear, editar, dar de baja y reactivar directores e instructores** de cualquier país (incluye cambiar rol y país), y alta/edición de países (moneda + cuota por defecto). |
 
 Flujo: el instructor sube el comprobante → queda **En revisión** → el **admin** lo
 **aprueba** o lo **rechaza con motivo** → si se rechazó, el instructor lo corrige y vuelve a
@@ -58,6 +58,7 @@ Todas las reglas viven en la base (`supabase/schema.sql`), no en el JS:
 
 ```
 index.html          Ingresar / crear cuenta / recuperar contraseña
+dashboard.html      Dashboard general (inicio del admin)
 instructor.html     Mis pagos (todos los roles)
 director.html       Panel de país (director y admin)
 admin.html          Países y usuarios (admin)

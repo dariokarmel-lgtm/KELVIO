@@ -68,7 +68,9 @@ async function requireRole(roles) {
   return me;
 }
 
+// Página de inicio según el rol: el admin entra al dashboard general.
 function homeFor(profile) {
+  if (profile.role === "admin") return "dashboard.html";
   return profile.role === "instructor" ? "instructor.html" : "director.html";
 }
 
@@ -79,7 +81,9 @@ async function signOut() {
 
 function renderTopbar() {
   const page = document.body.dataset.page;
-  const links = [{ href: "instructor.html", key: "instructor", label: t("nav.my_payments") }];
+  const links = [];
+  if (ME.role === "admin") links.push({ href: "dashboard.html", key: "dashboard", label: t("nav.dashboard") });
+  links.push({ href: "instructor.html", key: "instructor", label: t("nav.my_payments") });
   if (ME.role === "director" || ME.role === "admin") {
     links.push({ href: "director.html", key: "director", label: t(ME.role === "admin" ? "nav.countries" : "nav.my_country") });
   }
@@ -209,6 +213,28 @@ function accountChip(profile) {
     ? t("account.left_since", { month: fmtPeriod(addMonths(profile.end_month, 1)) })
     : t(`account.${st}`);
   return `<span class="chip ${cls}">${esc(text)}</span>`;
+}
+
+// ¿Se le cobra `period` a esta persona? (alta, no pendiente, no de baja para ese mes)
+function billable(p, period) {
+  if (p.start_month > period) return false;
+  if (p.end_month) return period <= p.end_month;
+  return p.active;
+}
+
+/*
+ * Meses vencidos (anteriores al actual) sin pago aprobado ni en revisión.
+ * `paymentOf(personId, period)` devuelve el pago de ese mes, si hay.
+ */
+function dueMonthsFor(p, paymentOf) {
+  if (!p.active && !p.end_month) return []; // pendiente de activación
+  let last = addMonths(currentPeriod(), -1);
+  if (p.end_month && p.end_month < last) last = p.end_month;
+  if (p.start_month > last) return [];
+  return periodsBetween(p.start_month, last).filter((period) => {
+    const pay = paymentOf(p.id, period);
+    return !pay || pay.status === "rejected";
+  });
 }
 
 /* ---------- Comprobantes ---------- */
@@ -443,6 +469,80 @@ async function reactivateUser(user, onDone) {
   } catch (err) {
     toast(errMsg(err), true);
   }
+}
+
+/* ---------- Revisión de un pago ---------- */
+
+/*
+ * Ficha de un pago con su comprobante. Solo un admin ve Aprobar / Rechazar
+ * (y la base solo se lo permite a un admin). onDone() se llama al cambiar
+ * el estado.
+ */
+function openPaymentReview({ pay, person, country, onDone }) {
+  const p = person || {};
+  const cur = country ? country.currency : pay.currency;
+  const fee = feeFor(p, country);
+  const admin = ME.role === "admin";
+  const amountWarn = Number(pay.amount) < fee
+    ? `<div class="banner warn">${esc(t("rv.amount_low", { fee: fmtMoney(fee, cur) }))}</div>` : "";
+  const kv = (label, value) => `<dt>${esc(t(label))}</dt><dd>${value}</dd>`;
+
+  const { el, close } = openModal(`${p.full_name || p.email || ""} — ${fmtPeriod(pay.period)}`, `
+    <div class="review-grid">
+      <div>
+        <p style="margin:0 0 12px">${chip(pay.status)}</p>
+        ${amountWarn}
+        <dl class="kv">
+          ${admin && country ? kv("common.country", esc(country.name)) : ""}
+          ${kv("rv.amount", fmtMoney(pay.amount, pay.currency))}
+          ${kv("rv.fee", fmtMoney(fee, cur))}
+          ${kv("rv.paid_on", fmtDate(pay.paid_on))}
+          ${kv("rv.method", esc(methodLabel(pay.method)))}
+          ${kv("rv.reference", esc(pay.reference || "—"))}
+          ${kv("rv.note", esc(pay.note || "—"))}
+          ${kv("rv.sent", fmtDate(pay.updated_at))}
+          ${pay.reviewed_at ? kv("rv.reviewed", fmtDate(pay.reviewed_at)) : ""}
+          ${pay.review_comment ? kv("rv.comment", esc(pay.review_comment)) : ""}
+        </dl>
+        ${admin ? `
+        <div class="field">
+          <label for="r-comment">${esc(t("rv.comment_label"))}</label>
+          <textarea class="input" id="r-comment" placeholder="${esc(t("rv.comment_ph"))}"></textarea>
+        </div>
+        <div class="modal-foot" style="justify-content:flex-start">
+          ${pay.status !== "approved" ? `<button class="btn success" id="r-approve" type="button">${esc(t("rv.approve"))}</button>` : ""}
+          ${pay.status !== "rejected" ? `<button class="btn danger" id="r-reject" type="button">${esc(t("rv.reject"))}</button>` : ""}
+          ${pay.status !== "pending" ? `<button class="btn ghost" id="r-reopen" type="button">${esc(t("rv.reopen"))}</button>` : ""}
+        </div>` : `<div class="banner info">${esc(t("rv.only_admin"))}</div>`}
+      </div>
+      <div>
+        <div class="receipt-view" id="r-receipt"></div>
+        ${pay.receipt_path ? `<p class="sub" style="margin-top:8px">${esc(t("rv.tap_hint"))}</p>` : ""}
+      </div>
+    </div>`, { wide: true });
+
+  renderReceipt(el.querySelector("#r-receipt"), pay.receipt_path);
+  if (!admin) return;
+
+  const setStatus = async (status) => {
+    const comment = el.querySelector("#r-comment").value.trim();
+    if (status === "rejected" && !comment) {
+      toast(t("rv.need_reason"), true);
+      el.querySelector("#r-comment").focus();
+      return;
+    }
+    const update = { status };
+    if (comment || status === "approved") update.review_comment = comment || null;
+    const { error } = await sb.from("payments").update(update).eq("id", pay.id);
+    if (error) return toast(errMsg(error), true);
+    close();
+    toast(t({ approved: "rv.approved_toast", rejected: "rv.rejected_toast", pending: "rv.reopened_toast" }[status]));
+    if (onDone) await onDone();
+  };
+
+  el.querySelector("#r-approve")?.addEventListener("click", () => setStatus("approved"));
+  el.querySelector("#r-reject")?.addEventListener("click", () => setStatus("rejected"));
+  el.querySelector("#r-reopen")?.addEventListener("click", () => setStatus("pending"));
 }
 
 /* ---------- UI ---------- */

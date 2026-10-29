@@ -41,23 +41,8 @@ function pendingList() {
   return isAdmin() ? state.globalPending : state.payments.filter((p) => p.status === "pending");
 }
 
-// ¿Se le cobra `period` a esta persona? (alta, no pendiente, no de baja para ese mes)
-function billable(p, period) {
-  if (p.start_month > period) return false;
-  if (p.end_month) return period <= p.end_month;
-  return p.active;
-}
-
-// Meses vencidos (anteriores al actual) sin pago aprobado ni en revisión.
 function dueMonths(p) {
-  if (!p.active && !p.end_month) return []; // pendiente de activación
-  let last = addMonths(currentPeriod(), -1);
-  if (p.end_month && p.end_month < last) last = p.end_month;
-  if (p.start_month > last) return [];
-  return periodsBetween(p.start_month, last).filter((period) => {
-    const pay = paymentOf(p.id, period);
-    return !pay || pay.status === "rejected";
-  });
+  return dueMonthsFor(p, paymentOf);
 }
 
 function redAmount(text) {
@@ -264,75 +249,11 @@ function openPersonForm(p) {
 
 /* ---------- Acciones ---------- */
 
-// Detalle de un pago con su comprobante. Solo el admin ve Aprobar / Rechazar.
 function openReview(paymentId) {
   const pay = state.payments.find((p) => p.id === paymentId) || state.globalPending.find((p) => p.id === paymentId);
   if (!pay) return;
   const p = pay.instructor || person(pay.instructor_id) || {};
-  const country = countryById(p.country_id) || state.country;
-  const cur = country ? country.currency : pay.currency;
-  const fee = feeFor(p, country);
-  const admin = isAdmin();
-  const amountWarn = Number(pay.amount) < fee
-    ? `<div class="banner warn">${esc(t("rv.amount_low", { fee: fmtMoney(fee, cur) }))}</div>` : "";
-  const kv = (label, value) => `<dt>${esc(t(label))}</dt><dd>${value}</dd>`;
-
-  const { el, close } = openModal(`${p.full_name || p.email || ""} — ${fmtPeriod(pay.period)}`, `
-    <div class="review-grid">
-      <div>
-        <p style="margin:0 0 12px">${chip(pay.status)}</p>
-        ${amountWarn}
-        <dl class="kv">
-          ${admin && country ? kv("common.country", esc(country.name)) : ""}
-          ${kv("rv.amount", fmtMoney(pay.amount, pay.currency))}
-          ${kv("rv.fee", fmtMoney(fee, cur))}
-          ${kv("rv.paid_on", fmtDate(pay.paid_on))}
-          ${kv("rv.method", esc(methodLabel(pay.method)))}
-          ${kv("rv.reference", esc(pay.reference || "—"))}
-          ${kv("rv.note", esc(pay.note || "—"))}
-          ${kv("rv.sent", fmtDate(pay.updated_at))}
-          ${pay.reviewed_at ? kv("rv.reviewed", fmtDate(pay.reviewed_at)) : ""}
-          ${pay.review_comment ? kv("rv.comment", esc(pay.review_comment)) : ""}
-        </dl>
-        ${admin ? `
-        <div class="field">
-          <label for="r-comment">${esc(t("rv.comment_label"))}</label>
-          <textarea class="input" id="r-comment" placeholder="${esc(t("rv.comment_ph"))}"></textarea>
-        </div>
-        <div class="modal-foot" style="justify-content:flex-start">
-          ${pay.status !== "approved" ? `<button class="btn success" id="r-approve" type="button">${esc(t("rv.approve"))}</button>` : ""}
-          ${pay.status !== "rejected" ? `<button class="btn danger" id="r-reject" type="button">${esc(t("rv.reject"))}</button>` : ""}
-          ${pay.status !== "pending" ? `<button class="btn ghost" id="r-reopen" type="button">${esc(t("rv.reopen"))}</button>` : ""}
-        </div>` : `<div class="banner info">${esc(t("rv.only_admin"))}</div>`}
-      </div>
-      <div>
-        <div class="receipt-view" id="r-receipt"></div>
-        ${pay.receipt_path ? `<p class="sub" style="margin-top:8px">${esc(t("rv.tap_hint"))}</p>` : ""}
-      </div>
-    </div>`, { wide: true });
-
-  renderReceipt(el.querySelector("#r-receipt"), pay.receipt_path);
-  if (!admin) return;
-
-  const setStatus = async (status) => {
-    const comment = el.querySelector("#r-comment").value.trim();
-    if (status === "rejected" && !comment) {
-      toast(t("rv.need_reason"), true);
-      el.querySelector("#r-comment").focus();
-      return;
-    }
-    const update = { status };
-    if (comment || status === "approved") update.review_comment = comment || null;
-    const { error } = await sb.from("payments").update(update).eq("id", pay.id);
-    if (error) return toast(errMsg(error), true);
-    close();
-    toast(t({ approved: "rv.approved_toast", rejected: "rv.rejected_toast", pending: "rv.reopened_toast" }[status]));
-    await refresh();
-  };
-
-  el.querySelector("#r-approve")?.addEventListener("click", () => setStatus("approved"));
-  el.querySelector("#r-reject")?.addEventListener("click", () => setStatus("rejected"));
-  el.querySelector("#r-reopen")?.addEventListener("click", () => setStatus("pending"));
+  openPaymentReview({ pay, person: p, country: countryById(p.country_id) || state.country, onDone: refresh });
 }
 
 /*
@@ -474,8 +395,10 @@ document.addEventListener("click", (e) => {
   if (isAdmin()) {
     sel.classList.remove("hidden");
     sel.innerHTML = state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
-    let saved = null;
-    try { saved = localStorage.getItem("ikmf.country"); } catch { /* sin storage */ }
+    let saved = new URLSearchParams(location.search).get("country");
+    if (!saved) {
+      try { saved = localStorage.getItem("ikmf.country"); } catch { /* sin storage */ }
+    }
     state.country = state.countries.find((c) => c.id === saved) || state.countries[0] || null;
     if (state.country) sel.value = state.country.id;
     sel.addEventListener("change", () => {

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title data-i18n="title.dashboard">Panel general — IKMF Pagos</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body data-page="dashboard">
+<main class="container">
+  <div class="page-head">
+    <div>
+      <h1 data-i18n="dash.title">Panel general</h1>
+      <p data-i18n="dash.subtitle"></p>
+    </div>
+    <div class="row">
+      <select class="input" id="country-filter" style="width:auto"></select>
+      <button class="btn ghost sm flip" id="prev-month" type="button">‹</button>
+      <input class="input" id="month-input" type="month" style="width:auto" />
+      <button class="btn ghost sm flip" id="next-month" type="button">›</button>
+    </div>
+  </div>
+
+  <div class="stats" id="kpis"></div>
+
+  <div class="dash-grid">
+    <!-- Por validar -->
+    <div class="card">
+      <div class="card-head">
+        <h2><span data-i18n="dash.pending_title">Pagos por validar</span> <span class="badge hidden" id="pending-badge"></span></h2>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="col.instructor">Instructor</th>
+              <th data-i18n="col.month">Mes</th>
+              <th class="num" data-i18n="col.amount">Monto</th>
+              <th data-i18n="col.sent">Enviado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="pending-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Alertas de falta de pago -->
+    <div class="card">
+      <div class="card-head">
+        <h2><span data-i18n="dash.alerts_title">Alertas de falta de pago</span> <span class="badge hidden" id="alerts-badge"></span></h2>
+        <span class="sub" data-i18n="dash.alerts_sub"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th data-i18n="col.instructor">Instructor</th>
+              <th data-i18n="col.owes">Adeuda</th>
+              <th class="num" data-i18n="col.debt">Deuda</th>
+              <th data-i18n="col.last_paid">Último pago</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="alerts-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagos aprobados del mes -->
+  <div class="card">
+    <div class="card-head">
+      <h2 id="paid-title"></h2>
+      <button class="btn ghost sm" id="export-btn" type="button" data-i18n="dir.export">Exportar CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="col.instructor">Instructor</th>
+            <th data-i18n="common.country">País</th>
+            <th class="num" data-i18n="col.amount">Monto</th>
+            <th data-i18n="col.paid_on">Pagado el</th>
+            <th data-i18n="col.method">Medio</th>
+            <th data-i18n="col.reviewed_on">Aprobado el</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="paid-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Resumen por país -->
+  <div class="card">
+    <div class="card-head"><h2 data-i18n="dash.countries_title">Resumen por país</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th data-i18n="common.country">País</th>
+            <th class="num" data-i18n="stat.instructors">Instructores</th>
+            <th class="num" data-i18n="stat.approved">Aprobados</th>
+            <th class="num" data-i18n="stat.to_validate">Por validar</th>
+            <th class="num" data-i18n="dash.col_unpaid">Sin pagar</th>
+            <th class="num" data-i18n="stat.collected">Recaudado</th>
+            <th class="num" data-i18n="stat.expected">Esperado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="countries-body"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/common.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>

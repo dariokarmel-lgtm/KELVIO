@@ -113,6 +113,11 @@ h2 { font-size: 17px; }
 .stat.yellow .value { color: var(--color-yellow); }
 .stat.red .value { color: var(--color-red); }
 
+.stat .sub { margin-top: 2px; }
+.dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+@media (max-width: 960px) { .dash-grid { grid-template-columns: 1fr; } }
+.dash-grid .card { min-width: 0; }
+
 /* ---------- Tables ---------- */
 .table-wrap { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
