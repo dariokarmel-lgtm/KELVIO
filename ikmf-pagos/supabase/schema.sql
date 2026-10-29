@@ -40,7 +40,8 @@ create table if not exists public.countries (
   name        text not null unique,
   code        text not null unique check (code ~ '^[A-Z]{2}$'),
   currency    text not null default 'USD' check (currency ~ '^[A-Z]{3}$'),
-  default_fee numeric(12,2) not null default 0 check (default_fee >= 0),
+  -- Cuota mensual: 15 USD para todos los países (editable desde Administración).
+  default_fee numeric(12,2) not null default 15 check (default_fee >= 0),
   created_at  timestamptz not null default now()
 );
 
@@ -372,12 +373,12 @@ create policy receipts_admin_delete on storage.objects
 -- Datos iniciales (editables desde la pantalla de Administración)
 -- ---------------------------------------------------------------------
 insert into public.countries (name, code, currency, default_fee) values
-  ('Argentina', 'AR', 'ARS', 0),
-  ('Uruguay',   'UY', 'UYU', 0),
-  ('Chile',     'CL', 'CLP', 0),
-  ('México',    'MX', 'MXN', 0),
-  ('España',    'ES', 'EUR', 0),
-  ('Israel',    'IL', 'ILS', 0)
+  ('Argentina', 'AR', 'USD', 15),
+  ('Uruguay',   'UY', 'USD', 15),
+  ('Chile',     'CL', 'USD', 15),
+  ('México',    'MX', 'USD', 15),
+  ('España',    'ES', 'USD', 15),
+  ('Israel',    'IL', 'USD', 15)
 on conflict (code) do nothing;
 
 -- ---------------------------------------------------------------------
