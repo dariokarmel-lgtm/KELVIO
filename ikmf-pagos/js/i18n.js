@@ -367,6 +367,11 @@ const DICT = {
     "col.reviewed_on": "Aprobado el",
     "dir.title_all": "Todos los países",
     "dir.fee_note_all": "Si la cuota de una persona queda vacía se usa la cuota por defecto de su país. Los que se registran solos quedan pendientes hasta que los actives.",
+    "user.resend": "Reenviar acceso",
+    "user.resend_confirm": "¿Enviarle a {email} un email para que pueda entrar y elegir su contraseña?",
+    "user.resend_done_invite": "Le reenviamos la invitación a {email}.",
+    "user.resend_done_reset": "Le enviamos a {email} un link para elegir una nueva contraseña.",
+    "err.user_left": "La cuenta está dada de baja. Reactivala antes de reenviar el acceso.",
   },
 
   en: {
@@ -718,6 +723,11 @@ const DICT = {
     "col.reviewed_on": "Approved on",
     "dir.title_all": "All countries",
     "dir.fee_note_all": "If a person's fee is left empty, their country's default fee is used. People who sign up on their own stay pending until you activate them.",
+    "user.resend": "Resend access",
+    "user.resend_confirm": "Send {email} an email so they can sign in and choose their password?",
+    "user.resend_done_invite": "We resent the invitation to {email}.",
+    "user.resend_done_reset": "We sent {email} a link to choose a new password.",
+    "err.user_left": "The account is deactivated. Reactivate it before resending access.",
   },
 
   he: {
@@ -1069,6 +1079,11 @@ const DICT = {
     "col.reviewed_on": "אושר בתאריך",
     "dir.title_all": "כל המדינות",
     "dir.fee_note_all": "אם דמי המנוי של אדם נשארים ריקים, נעשה שימוש בברירת המחדל של המדינה שלו. מי שנרשם בעצמו ממתין עד שתפעילו אותו.",
+    "user.resend": "שליחת גישה מחדש",
+    "user.resend_confirm": "לשלוח ל־{email} אימייל כדי שיוכל להיכנס ולבחור סיסמה?",
+    "user.resend_done_invite": "שלחנו מחדש את ההזמנה ל־{email}.",
+    "user.resend_done_reset": "שלחנו ל־{email} קישור לבחירת סיסמה חדשה.",
+    "err.user_left": "החשבון מושבת. הפעילו אותו מחדש לפני שליחת הגישה.",
   },
 
   fr: {
@@ -1420,6 +1435,11 @@ const DICT = {
     "col.reviewed_on": "Approuvé le",
     "dir.title_all": "Tous les pays",
     "dir.fee_note_all": "Si la cotisation d'une personne reste vide, la cotisation par défaut de son pays est utilisée. Les personnes inscrites par elles-mêmes restent en attente jusqu'à ce que vous les activiez.",
+    "user.resend": "Renvoyer l'accès",
+    "user.resend_confirm": "Envoyer un e-mail à {email} pour qu'il puisse se connecter et choisir son mot de passe ?",
+    "user.resend_done_invite": "Nous avons renvoyé l'invitation à {email}.",
+    "user.resend_done_reset": "Nous avons envoyé à {email} un lien pour choisir un nouveau mot de passe.",
+    "err.user_left": "Le compte est désactivé. Réactivez-le avant de renvoyer l'accès.",
   },
 
   de: {
@@ -1771,6 +1791,11 @@ const DICT = {
     "col.reviewed_on": "Genehmigt am",
     "dir.title_all": "Alle Länder",
     "dir.fee_note_all": "Bleibt der Beitrag einer Person leer, gilt der Standardbeitrag ihres Landes. Wer sich selbst registriert, bleibt ausstehend, bis du die Person aktivierst.",
+    "user.resend": "Zugang erneut senden",
+    "user.resend_confirm": "{email} eine E-Mail senden, damit die Person sich anmelden und ein Passwort wählen kann?",
+    "user.resend_done_invite": "Wir haben die Einladung erneut an {email} gesendet.",
+    "user.resend_done_reset": "Wir haben {email} einen Link zum Festlegen eines neuen Passworts gesendet.",
+    "err.user_left": "Das Konto ist deaktiviert. Reaktiviere es, bevor du den Zugang erneut sendest.",
   },
 
   it: {
@@ -2122,6 +2147,11 @@ const DICT = {
     "col.reviewed_on": "Approvato il",
     "dir.title_all": "Tutti i paesi",
     "dir.fee_note_all": "Se la quota di una persona resta vuota si usa la quota predefinita del suo paese. Chi si registra da solo resta in attesa finché non lo attivi.",
+    "user.resend": "Reinvia accesso",
+    "user.resend_confirm": "Inviare a {email} un'email per accedere e scegliere la password?",
+    "user.resend_done_invite": "Abbiamo reinviato l'invito a {email}.",
+    "user.resend_done_reset": "Abbiamo inviato a {email} un link per scegliere una nuova password.",
+    "err.user_left": "L'account è disattivato. Riattivalo prima di reinviare l'accesso.",
   },
 };
 

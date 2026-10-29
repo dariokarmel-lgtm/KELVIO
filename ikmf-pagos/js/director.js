@@ -247,6 +247,7 @@ function renderInstructors() {
       actions += st === "left"
         ? `<button class="btn sm ghost" data-activate="${p.id}">${esc(t("user.reactivate"))}</button>`
         : `<button class="btn sm ghost" data-deactivate="${p.id}">${esc(t("user.deactivate"))}</button>`;
+      if (st !== "left") actions += ` <button class="btn sm ghost" data-resend="${p.id}">${esc(t("user.resend"))}</button>`;
     }
     return `<tr>
       <td><strong>${esc(p.full_name || t("common.no_name"))}</strong>
@@ -398,6 +399,7 @@ document.addEventListener("click", (e) => {
   if (b.dataset.editUser) openPersonForm(person(b.dataset.editUser));
   if (b.dataset.deactivate) openDeactivateForm(person(b.dataset.deactivate), refresh);
   if (b.dataset.activate) reactivateUser(person(b.dataset.activate), refresh);
+  if (b.dataset.resend) resendAccess(person(b.dataset.resend));
   if (b.dataset.tab) setTab(b.dataset.tab);
 });
 

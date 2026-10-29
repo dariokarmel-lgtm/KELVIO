@@ -492,6 +492,18 @@ async function reactivateUser(user, onDone) {
   }
 }
 
+// Reenvía el acceso: la invitación si nunca la aceptó, o un link para
+// elegir nueva contraseña si ya tenía cuenta.
+async function resendAccess(user) {
+  if (!confirm(t("user.resend_confirm", { email: user.email }))) return;
+  try {
+    const r = await callFunction("manage-user", { action: "resend", userId: user.id });
+    toast(t(r.sent === "invite" ? "user.resend_done_invite" : "user.resend_done_reset", { email: r.email }));
+  } catch (err) {
+    toast(errMsg(err), true);
+  }
+}
+
 /* ---------- Revisión de un pago ---------- */
 
 /*

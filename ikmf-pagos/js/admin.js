@@ -57,6 +57,7 @@ function renderUsers() {
       actions += st === "left"
         ? `<button class="btn sm ghost" data-activate="${u.id}">${esc(t("user.reactivate"))}</button>`
         : `<button class="btn sm ghost" data-deactivate="${u.id}">${esc(t("user.deactivate"))}</button>`;
+      if (st !== "left") actions += ` <button class="btn sm ghost" data-resend="${u.id}">${esc(t("user.resend"))}</button>`;
     }
     return `<tr>
       <td><strong>${esc(u.full_name || t("common.no_name"))}</strong>${u.id === ME.id ? ` <span class="sub">${esc(t("common.you"))}</span>` : ""}
@@ -168,6 +169,7 @@ document.addEventListener("click", (e) => {
   if (b.dataset.editUser) openAdminUserForm(userById(b.dataset.editUser));
   if (b.dataset.deactivate) openDeactivateForm(userById(b.dataset.deactivate), refresh);
   if (b.dataset.activate) reactivateUser(userById(b.dataset.activate), refresh);
+  if (b.dataset.resend) resendAccess(userById(b.dataset.resend));
   if (b.dataset.saveCountry) saveCountry(b.dataset.saveCountry);
   if (b.dataset.deleteCountry) deleteCountry(b.dataset.deleteCountry);
 });

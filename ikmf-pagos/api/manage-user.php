@@ -11,6 +11,9 @@
  *   deactivate  → baja: deja de cobrarse después de data.end_month y no
  *                 puede volver a ingresar. El historial de pagos se conserva.
  *   reactivate  → deshace la baja (o activa a quien se registró solo).
+ *   resend      → reenvía el acceso: si nunca aceptó la invitación se la
+ *                 reenvía; si ya tenía cuenta, le manda un link para elegir
+ *                 una nueva contraseña.
  *
  * Permisos (la service_role saltea RLS, así que se chequean acá):
  *   admin              → instructores y directores de cualquier país.
@@ -275,6 +278,25 @@ function reactivate_user($cfg, $target) {
     return ['user' => db_update_profile($cfg, $target['id'], $row)];
 }
 
+function resend_access($cfg, $target) {
+    if (!empty($target['end_month'])) {
+        throw new HttpError(400, 'La cuenta está dada de baja. Reactivala antes de reenviar el acceso.', 'user_left');
+    }
+    [$status, $user] = sb_request($cfg, 'GET', '/auth/v1/admin/users/' . rawurlencode($target['id']));
+    if ($status >= 300) throw auth_error($user);
+    $redirect = rtrim($cfg['site_url'] ?? '', '/');
+    $query = $redirect ? '?redirect_to=' . rawurlencode($redirect . '/index.html') : '';
+    $confirmed = !empty($user['email_confirmed_at']) || !empty($user['confirmed_at']);
+    if (!$confirmed) {
+        [$status, $data] = sb_request($cfg, 'POST', '/auth/v1/invite' . $query, ['email' => $target['email']]);
+        if ($status < 300) return ['sent' => 'invite', 'email' => $target['email']];
+        // Si GoTrue no deja re-invitar, se cae al link de contraseña.
+    }
+    [$status, $data] = sb_request($cfg, 'POST', '/auth/v1/recover' . $query, ['email' => $target['email']]);
+    if ($status >= 300) throw auth_error($data);
+    return ['sent' => 'reset', 'email' => $target['email']];
+}
+
 /* ---------- Handler ---------- */
 
 try {
@@ -305,6 +327,7 @@ try {
         case 'update':     respond(200, update_user($cfg, $caller, $target, $data));
         case 'deactivate': respond(200, deactivate_user($cfg, $target, $data));
         case 'reactivate': respond(200, reactivate_user($cfg, $target));
+        case 'resend':     respond(200, resend_access($cfg, $target));
         default:           respond(400, ['error' => 'Acción desconocida.', 'code' => 'unknown_action']);
     }
 } catch (HttpError $e) {
