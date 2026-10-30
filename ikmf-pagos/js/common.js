@@ -313,10 +313,10 @@ function startMonthFor(p) {
  * Opciones del filtro "Todos / región / país". Valores: "" (todos),
  * "r:<región>" o el id del país. Los países van agrupados por región.
  */
-function regionCountryOptions(countries, selected) {
+function regionCountryOptions(countries, selected, extra = []) {
   const opt = (value, label) => `<option value="${esc(value)}" ${value === selected ? "selected" : ""}>${esc(label)}</option>`;
   const used = REGIONS.filter((r) => countries.some((c) => c.region === r));
-  let html = opt("", t("adm.all_countries"));
+  let html = opt("", t("adm.all_countries")) + extra.map(([v, l]) => opt(v, l)).join("");
   if (used.length) {
     html += `<optgroup label="${esc(t("region.group"))}">${used.map((r) => opt(`r:${r}`, regionLabel(r))).join("")}</optgroup>`;
   }
@@ -325,6 +325,14 @@ function regionCountryOptions(countries, selected) {
     if (list.length) html += `<optgroup label="${esc(regionLabel(r))}">${list.map((c) => opt(c.id, c.name)).join("")}</optgroup>`;
   });
   return html;
+}
+
+// ¿El país `c` entra en el filtro ("" todos · "r:<región>" · id de país)?
+function countryMatchesFilter(c, filter) {
+  if (!filter) return true;
+  if (!c) return false;
+  if (filter.startsWith("r:")) return c.region === filter.slice(2);
+  return c.id === filter;
 }
 
 // ¿Se le cobra `period` a esta persona? (alta, no pendiente, no de baja para ese mes)

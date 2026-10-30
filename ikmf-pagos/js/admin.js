@@ -29,9 +29,12 @@ async function load() {
 function renderFilters() {
   const sel = $("u-country");
   const current = sel.value;
-  sel.innerHTML = `<option value="">${esc(t("adm.all_countries"))}</option><option value="none">${esc(t("adm.no_country"))}</option>` +
-    countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  sel.innerHTML = regionCountryOptions(countries, current, [["none", t("adm.no_country")]]);
   sel.value = current;
+  const cf = $("c-filter");
+  const currentC = cf.value;
+  cf.innerHTML = regionCountryOptions(countries, currentC);
+  cf.value = currentC;
 }
 
 function renderUsers() {
@@ -41,7 +44,7 @@ function renderUsers() {
   const showLeft = $("u-left").checked;
   const list = users.filter((u) =>
     (!q || (u.full_name || "").toLowerCase().includes(q) || u.email.toLowerCase().includes(q)) &&
-    (!cf || (cf === "none" ? !u.country_id : u.country_id === cf)) &&
+    (cf === "none" ? !u.country_id : countryMatchesFilter(countryById(u.country_id), cf)) &&
     (!rf || u.role === rf) &&
     (showLeft || accountState(u) !== "left"));
 
@@ -66,7 +69,7 @@ function renderUsers() {
     return `<tr>
       <td><strong>${esc(u.full_name || t("common.no_name"))}</strong>${u.id === ME.id ? ` <span class="sub">${esc(t("common.you"))}</span>` : ""}
         <div class="sub" dir="ltr">${esc(u.email)}${u.phone ? " · " + esc(u.phone) : ""}</div></td>
-      <td>${esc(countryName(u.country_id))}</td>
+      <td>${esc(countryName(u.country_id))}${countryById(u.country_id) ? `<div class="sub">${esc(regionLabel(countryById(u.country_id).region))}</div>` : ""}</td>
       <td>${esc(roleLabel(u.role))}</td>
       <td>${accountChip(u)}</td>
       <td class="actions">${actions}</td>
@@ -88,8 +91,13 @@ function openAdminUserForm(user) {
   });
 }
 
+function countryById(id) {
+  return countries.find((c) => c.id === id) || null;
+}
+
 function renderCountries() {
-  $("countries-body").innerHTML = countries.map((c) => {
+  const filter = $("c-filter").value;
+  $("countries-body").innerHTML = countries.filter((c) => countryMatchesFilter(c, filter)).map((c) => {
     const directors = users.filter((u) => u.role === "director" && u.country_id === c.id);
     return `<tr data-country="${c.id}">
       <td><input class="input sm f-name" value="${esc(c.name)}" style="width:160px" /></td>
@@ -193,6 +201,7 @@ document.addEventListener("click", (e) => {
   $("c-region").innerHTML = regionOptions("");
 
   ["u-search", "u-country", "u-role", "u-left"].forEach((id) => $(id).addEventListener("input", renderUsers));
+  $("c-filter").addEventListener("change", renderCountries);
   $("new-user-btn").addEventListener("click", () => openAdminUserForm(null));
 
   $("c-form").addEventListener("submit", async (e) => {

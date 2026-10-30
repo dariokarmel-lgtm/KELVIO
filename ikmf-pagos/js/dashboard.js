@@ -33,9 +33,7 @@ function paymentOf(personId, period) {
 }
 
 function countryInFilter(c) {
-  if (!state.filter) return true;
-  if (state.filter.startsWith("r:")) return c.region === state.filter.slice(2);
-  return c.id === state.filter;
+  return countryMatchesFilter(c, state.filter);
 }
 
 function inFilter(p) {

@@ -7,7 +7,8 @@
 
 const state = {
   countries: [],
-  country: null,      // null = todos los países (solo admin)
+  country: null,      // null = todos los países o una región (solo admin)
+  region: null,       // admin: región elegida en el selector (con country = null)
   people: [],         // perfiles que este usuario puede ver (del país o de todos)
   payments: [],       // pagos de esos perfiles
   globalPending: [],  // admin: pendientes de todos los países (con su instructor)
@@ -33,8 +34,16 @@ function countryById(id) {
   return state.countries.find((c) => c.id === id) || null;
 }
 
+// Vista de varios países (todos o una región): cada fila muestra su país.
 function allCountries() {
   return isAdmin() && !state.country;
+}
+
+// ¿Esta persona entra en la región elegida? (sin región elegida, todas)
+function inRegion(p) {
+  if (!state.region) return true;
+  const c = countryById(p && p.country_id);
+  return !!c && c.region === state.region;
 }
 
 // País de una persona (en la vista "todos" cada fila tiene el suyo).
@@ -49,7 +58,9 @@ function currencyOf(p) {
 
 function pendingList() {
   if (!isAdmin()) return state.payments.filter((p) => p.status === "pending");
-  return state.globalPending.filter((pay) => !state.country || (pay.instructor && pay.instructor.country_id === state.country.id));
+  return state.globalPending.filter((pay) => state.country
+    ? pay.instructor && pay.instructor.country_id === state.country.id
+    : inRegion(pay.instructor));
 }
 
 function dueMonths(p) {
@@ -80,12 +91,14 @@ async function loadCountryData() {
     if (state.country) q = q.eq("country_id", state.country.id);
     return q;
   });
-  state.people = people;
+  state.people = people.filter(inRegion);
 
   if (allCountries()) {
-    // Admin, todos los países: RLS ya deja ver todo; se excluyen los del admin.
+    // Admin, todos los países o una región: RLS ya deja ver todo; se
+    // excluyen los pagos del admin y los de fuera de la región.
+    const ids = new Set(state.people.map((p) => p.id));
     state.payments = (await fetchAll(() => sb.from("payments").select("*").order("created_at")))
-      .filter((p) => p.instructor_id !== ME.id);
+      .filter((p) => ids.has(p.instructor_id));
     return;
   }
   const ids = people.map((p) => p.id);
@@ -123,7 +136,9 @@ async function refresh() {
 function renderAll() {
   $("title").textContent = state.country
     ? t("dir.title_country", { country: state.country.name })
-    : t(allCountries() ? "dir.title_all" : "dir.title");
+    : state.region
+      ? t("dir.title_country", { country: regionLabel(state.region) })
+      : t(allCountries() ? "dir.title_all" : "dir.title");
   $("fee-note").textContent = state.country
     ? t("dir.fee_note", { fee: fmtMoney(state.country.default_fee, state.country.currency) })
     : t("dir.fee_note_all");
@@ -430,15 +445,20 @@ document.addEventListener("click", (e) => {
   const sel = $("country-select");
   if (isAdmin()) {
     sel.classList.remove("hidden");
-    // Por defecto, todos los países; ?country=<id> (desde el dashboard) filtra uno.
-    sel.innerHTML = `<option value="">${esc(t("adm.all_countries"))}</option>` +
-      state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
-    const wanted = new URLSearchParams(location.search).get("country");
-    state.country = state.countries.find((c) => c.id === wanted) || null;
-    sel.value = state.country ? state.country.id : "";
+    // Por defecto, todos los países. Se puede elegir una región o un país;
+    // ?country=<id> o ?region=<región> (p. ej. desde el dashboard) lo preselecciona.
+    const applyFilter = (value) => {
+      state.region = value && value.startsWith("r:") ? value.slice(2) : null;
+      state.country = state.region ? null : state.countries.find((c) => c.id === value) || null;
+    };
+    const params = new URLSearchParams(location.search);
+    applyFilter(params.get("region") ? `r:${params.get("region")}` : params.get("country") || "");
+    const current = state.region ? `r:${state.region}` : state.country ? state.country.id : "";
+    sel.innerHTML = regionCountryOptions(state.countries, current);
     sel.addEventListener("change", () => {
-      state.country = state.countries.find((c) => c.id === sel.value) || null;
-      history.replaceState(null, "", state.country ? `?country=${state.country.id}` : location.pathname);
+      applyFilter(sel.value);
+      const qs = state.region ? `?region=${state.region}` : state.country ? `?country=${state.country.id}` : "";
+      history.replaceState(null, "", qs || location.pathname);
       refresh();
     });
   } else {
