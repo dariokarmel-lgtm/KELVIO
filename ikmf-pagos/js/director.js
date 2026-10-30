@@ -182,7 +182,7 @@ function renderMonth() {
     } else {
       actions = `<button class="btn sm ghost" data-manual="${p.id}" data-period="${period}">${esc(t("dir.register"))}</button>`;
     }
-    return `<tr>
+    return `<tr${pay ? ` class="row-link" data-review="${pay.id}"` : ""}>
       <td>${pay ? payNameLink(p.full_name || t("common.no_name"), pay) : `<strong>${esc(p.full_name || t("common.no_name"))}</strong>`}<div class="sub">${countryTag(p)}${esc(p.email)}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div></td>
       <td>${chip(status)}</td>
       <td class="num">${fmtMoney(feeFor(p, countryOf(p)), currencyOf(p))}</td>
@@ -211,7 +211,7 @@ function renderPending() {
   $("pending-body").innerHTML = list.map((pay) => {
     const p = pay.instructor || person(pay.instructor_id) || {};
     const c = countryById(p.country_id);
-    return `<tr>
+    return `<tr class="row-link" data-review="${pay.id}">
       <td>${payNameLink(p.full_name || p.email || "—", pay)}</td>
       ${admin ? `<td>${esc(c ? c.name : "—")}</td>` : ""}
       <td>${fmtPeriod(pay.period)}</td>
@@ -393,7 +393,12 @@ function setTab(tab) {
 
 document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
+  if (!b) {
+    // Tocar cualquier parte de la fila de un pago abre su comprobante.
+    const row = e.target.closest("tr[data-review]");
+    if (row) openReview(row.dataset.review);
+    return;
+  }
   if (b.dataset.review) openReview(b.dataset.review);
   if (b.dataset.manual) openManualPayment(b.dataset.manual, b.dataset.period);
   if (b.dataset.editUser) openPersonForm(person(b.dataset.editUser));

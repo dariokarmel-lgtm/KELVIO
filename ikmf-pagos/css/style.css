@@ -132,11 +132,18 @@ td.actions { white-space: nowrap; text-align: end; }
 /* Nombre que abre la ficha del pago con el comprobante */
 .name-link {
   background: none; border: none; padding: 0; margin: 0; font: inherit; font-weight: 700;
-  color: var(--color-text); text-align: start; cursor: pointer;
-  text-decoration: underline; text-decoration-color: var(--color-border); text-underline-offset: 3px;
+  color: var(--color-blue); text-align: start; cursor: pointer;
+  text-decoration: underline; text-decoration-color: currentColor; text-underline-offset: 3px;
 }
 .name-link:hover, .name-link:focus-visible { color: var(--color-accent); text-decoration-color: currentColor; }
 .name-link .clip { font-size: 12px; }
+
+tr.row-link { cursor: pointer; }
+tr.row-link:hover td, tr.row-link:active td { background: var(--color-blue-bg); }
+.stat.clickable { cursor: pointer; transition: transform .08s, box-shadow .08s; }
+.stat.clickable:hover, .stat.clickable:focus-visible { box-shadow: var(--shadow-lg); outline: none; }
+.stat.clickable:active { transform: scale(.98); }
+.stat.clickable .sub { color: var(--color-blue); font-weight: 600; }
 
 /* ---------- Chips ---------- */
 .chip {

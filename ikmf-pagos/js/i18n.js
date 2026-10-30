@@ -374,6 +374,7 @@ const DICT = {
     "err.user_left": "La cuenta está dada de baja. Reactivala antes de reenviar el acceso.",
     "dash.subtitle_dir": "Resumen de pagos de los instructores de tu país.",
     "login.remember": "Recordarme",
+    "dash.tap_to_validate": "Tocá para validar",
   },
 
   en: {
@@ -732,6 +733,7 @@ const DICT = {
     "err.user_left": "The account is deactivated. Reactivate it before resending access.",
     "dash.subtitle_dir": "Payment summary for the instructors in your country.",
     "login.remember": "Remember me",
+    "dash.tap_to_validate": "Tap to validate",
   },
 
   he: {
@@ -1090,6 +1092,7 @@ const DICT = {
     "err.user_left": "החשבון מושבת. הפעילו אותו מחדש לפני שליחת הגישה.",
     "dash.subtitle_dir": "סיכום התשלומים של המדריכים במדינה שלכם.",
     "login.remember": "זכור אותי",
+    "dash.tap_to_validate": "הקישו לאישור",
   },
 
   fr: {
@@ -1448,6 +1451,7 @@ const DICT = {
     "err.user_left": "Le compte est désactivé. Réactivez-le avant de renvoyer l'accès.",
     "dash.subtitle_dir": "Résumé des paiements des instructeurs de votre pays.",
     "login.remember": "Se souvenir de moi",
+    "dash.tap_to_validate": "Touchez pour valider",
   },
 
   de: {
@@ -1806,6 +1810,7 @@ const DICT = {
     "err.user_left": "Das Konto ist deaktiviert. Reaktiviere es, bevor du den Zugang erneut sendest.",
     "dash.subtitle_dir": "Zahlungsübersicht der Instruktoren deines Landes.",
     "login.remember": "Angemeldet bleiben",
+    "dash.tap_to_validate": "Zum Prüfen tippen",
   },
 
   it: {
@@ -2164,6 +2169,7 @@ const DICT = {
     "err.user_left": "L'account è disattivato. Riattivalo prima di reinviare l'accesso.",
     "dash.subtitle_dir": "Riepilogo dei pagamenti degli istruttori del tuo paese.",
     "login.remember": "Ricordami",
+    "dash.tap_to_validate": "Tocca per convalidare",
   },
 };
 

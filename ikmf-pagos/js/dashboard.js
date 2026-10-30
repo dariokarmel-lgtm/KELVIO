@@ -95,16 +95,21 @@ function render() {
   renderCountries();
 }
 
+// Pendientes que se ven ahora (para la ventana que abre la tarjeta "Por validar").
+let currentPending = [];
+
 function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, toActivate }) {
-  const stat = (cls, label, value, sub) =>
-    `<div class="stat ${cls}"><div class="label">${esc(t(label))}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+  currentPending = pending;
+  // `kpi` hace la tarjeta tocable: abre la ventana de pendientes o lleva a su sección.
+  const stat = (cls, label, value, sub, kpi) =>
+    `<div class="stat ${cls}${kpi ? " clickable" : ""}"${kpi ? ` data-kpi="${kpi}" role="button" tabindex="0"` : ""}><div class="label">${esc(t(label))}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
   const current = state.period >= currentPeriod();
   $("kpis").innerHTML =
-    stat("green", "dash.kpi_approved", approvedMonth.length, esc(t("dash.of_billable", { n: billablePeople.length }))) +
-    stat("green", "dash.kpi_collected", `<span style="font-size:.8em">${sumByCurrency(approvedMonth)}</span>`) +
-    stat("yellow", "dash.kpi_pending", pending.length) +
+    stat("green", "dash.kpi_approved", approvedMonth.length, esc(t("dash.of_billable", { n: billablePeople.length })), "paid") +
+    stat("green", "dash.kpi_collected", `<span style="font-size:.8em">${sumByCurrency(approvedMonth)}</span>`, "", "paid") +
+    stat("yellow", "dash.kpi_pending", pending.length, pending.length ? esc(t("dash.tap_to_validate")) : "", "pending") +
     stat("red", current ? "stat.unpaid_yet" : "dash.kpi_unpaid", unpaid.length) +
-    stat("red", "dash.kpi_overdue", alerts.length) +
+    stat("red", "dash.kpi_overdue", alerts.length, "", "alerts") +
     stat("", "dash.kpi_activation", toActivate.length);
 }
 
@@ -120,7 +125,7 @@ function renderPending(list) {
   $("pending-badge").classList.toggle("hidden", !list.length);
   $("pending-body").innerHTML = list.map((pay) => {
     const p = person(pay.instructor_id) || {};
-    return `<tr>
+    return `<tr class="row-link" data-review="${pay.id}">
       <td>${personCell(p, pay)}</td>
       <td>${fmtPeriod(pay.period)}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
@@ -163,7 +168,7 @@ function renderPaid(list) {
   $("paid-body").innerHTML = rows.map((pay) => {
     const p = person(pay.instructor_id) || {};
     const c = countryById(p.country_id);
-    return `<tr>
+    return `<tr class="row-link" data-review="${pay.id}">
       <td>${payNameLink(p.full_name || p.email || "—", pay)}</td>
       <td>${esc(c ? c.name : "—")}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
@@ -221,13 +226,55 @@ function exportPaid() {
 
 /* ---------- Init ---------- */
 
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b || !b.dataset.review) return;
-  const pay = state.payments.find((p) => p.id === b.dataset.review);
+function openReview(paymentId) {
+  const pay = state.payments.find((p) => p.id === paymentId);
   if (!pay) return;
   const p = person(pay.instructor_id) || {};
   openPaymentReview({ pay, person: p, country: countryById(p.country_id), onDone: refresh });
+}
+
+// Ventana con todos los pagos por validar; tocar uno abre su comprobante.
+function openPendingModal() {
+  const rows = currentPending.map((pay) => {
+    const p = person(pay.instructor_id) || {};
+    const c = countryById(p.country_id);
+    return `<tr class="row-link" data-review="${pay.id}">
+      <td>${payNameLink(p.full_name || p.email || "—", pay)}<div class="sub">${esc(c ? c.name : "—")}</div></td>
+      <td>${fmtPeriod(pay.period)}</td>
+      <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
+      <td class="actions"><button class="btn sm ${isAdmin() ? "primary" : "ghost"}" data-review="${pay.id}">${esc(t(isAdmin() ? "dir.validate" : "dir.view"))}</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="4" class="empty">${esc(t("dir.no_pending"))}</td></tr>`;
+  openModal(t(isAdmin() ? "dash.pending_title" : "dir.pending_title_dir"), `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>${esc(t("col.instructor"))}</th><th>${esc(t("col.month"))}</th>
+        <th class="num">${esc(t("col.amount"))}</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`, { wide: true });
+}
+
+document.addEventListener("click", (e) => {
+  const target = e.target.closest("[data-review]");
+  if (target) {
+    // Si viene de la ventana de pendientes, se cierra y se abre el comprobante.
+    target.closest(".modal-backdrop")?.remove();
+    openReview(target.dataset.review);
+    return;
+  }
+  const kpi = e.target.closest("[data-kpi]");
+  if (!kpi) return;
+  if (kpi.dataset.kpi === "pending") return openPendingModal();
+  const section = { paid: "paid-title", alerts: "alerts-badge" }[kpi.dataset.kpi];
+  $(section)?.closest(".card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.dataset && e.target.dataset.kpi) {
+    e.preventDefault();
+    e.target.click();
+  }
 });
 
 (async function init() {
