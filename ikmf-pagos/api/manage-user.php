@@ -160,10 +160,13 @@ function load_caller($cfg, $token) {
     return ['me' => $me, 'isAdmin' => $isAdmin];
 }
 
-function assert_can_manage($caller, $target) {
+function assert_can_manage($caller, $target, $action = '') {
     if (!$target) throw new HttpError(404, 'Usuario no encontrado.', 'not_found');
     if ($target['id'] === $caller['me']['id']) throw new HttpError(403, 'No podés modificar tu propia cuenta desde acá.', 'self');
-    if ($target['role'] === 'admin') throw new HttpError(403, 'Las cuentas de administrador se gestionan desde la base de datos.', 'admin_account');
+    // A otro admin solo se le puede reenviar el acceso (y solo lo hace un admin).
+    if ($target['role'] === 'admin' && !($caller['isAdmin'] && $action === 'resend')) {
+        throw new HttpError(403, 'Las cuentas de administrador se gestionan desde la base de datos.', 'admin_account');
+    }
     if ($caller['isAdmin']) return;
     if ($target['role'] !== 'instructor' || $target['country_id'] !== $caller['me']['country_id']) {
         throw new HttpError(403, 'Solo podés gestionar instructores de tu país.', 'only_own_country');
@@ -278,7 +281,13 @@ function reactivate_user($cfg, $target) {
     return ['user' => db_update_profile($cfg, $target['id'], $row)];
 }
 
-function resend_access($cfg, $target) {
+/*
+ * Reenvía el acceso por email y, si quien pide es admin, además devuelve un
+ * link de un solo uso para elegir contraseña (para mandarlo por WhatsApp si
+ * el email no llega). El link no se le da a directores: les permitiría
+ * entrar a la cuenta de un instructor.
+ */
+function resend_access($cfg, $caller, $target) {
     if (!empty($target['end_month'])) {
         throw new HttpError(400, 'La cuenta está dada de baja. Reactivala antes de reenviar el acceso.', 'user_left');
     }
@@ -287,14 +296,30 @@ function resend_access($cfg, $target) {
     $redirect = rtrim($cfg['site_url'] ?? '', '/');
     $query = $redirect ? '?redirect_to=' . rawurlencode($redirect . '/index.html') : '';
     $confirmed = !empty($user['email_confirmed_at']) || !empty($user['confirmed_at']);
+    $result = ['email' => $target['email']];
+    $sent = false;
     if (!$confirmed) {
         [$status, $data] = sb_request($cfg, 'POST', '/auth/v1/invite' . $query, ['email' => $target['email']]);
-        if ($status < 300) return ['sent' => 'invite', 'email' => $target['email']];
+        if ($status < 300) { $sent = true; $result['sent'] = 'invite'; }
         // Si GoTrue no deja re-invitar, se cae al link de contraseña.
     }
-    [$status, $data] = sb_request($cfg, 'POST', '/auth/v1/recover' . $query, ['email' => $target['email']]);
-    if ($status >= 300) throw auth_error($data);
-    return ['sent' => 'reset', 'email' => $target['email']];
+    if (!$sent) {
+        [$status, $data] = sb_request($cfg, 'POST', '/auth/v1/recover' . $query, ['email' => $target['email']]);
+        if ($status < 300) $result['sent'] = 'reset';
+        elseif (!$caller['isAdmin']) throw auth_error($data);
+        else $result['email_error'] = auth_error($data)->getMessage();
+    }
+    if ($caller['isAdmin']) {
+        [$status, $link] = sb_request($cfg, 'POST', '/auth/v1/admin/generate_link', [
+            'type' => 'recovery',
+            'email' => $target['email'],
+            'redirect_to' => $redirect ? $redirect . '/index.html' : null,
+        ]);
+        $url = $link['action_link'] ?? ($link['properties']['action_link'] ?? null);
+        if ($status < 300 && $url) $result['link'] = $url;
+        elseif (empty($result['sent'])) throw auth_error($link);
+    }
+    return $result;
 }
 
 /* ---------- Handler ---------- */
@@ -321,13 +346,13 @@ try {
 
     $userId = (string)($body['userId'] ?? '');
     $target = preg_match('/^[0-9a-f-]{36}$/i', $userId) ? db_get_one($cfg, 'profiles', 'id=eq.' . rawurlencode($userId)) : null;
-    assert_can_manage($caller, $target);
+    assert_can_manage($caller, $target, $action);
 
     switch ($action) {
         case 'update':     respond(200, update_user($cfg, $caller, $target, $data));
         case 'deactivate': respond(200, deactivate_user($cfg, $target, $data));
         case 'reactivate': respond(200, reactivate_user($cfg, $target));
-        case 'resend':     respond(200, resend_access($cfg, $target));
+        case 'resend':     respond(200, resend_access($cfg, $caller, $target));
         default:           respond(400, ['error' => 'Acción desconocida.', 'code' => 'unknown_action']);
     }
 } catch (HttpError $e) {

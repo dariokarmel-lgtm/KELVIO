@@ -548,10 +548,33 @@ async function resendAccess(user) {
   if (!confirm(t("user.resend_confirm", { email: user.email }))) return;
   try {
     const r = await callFunction("manage-user", { action: "resend", userId: user.id });
+    if (r.link) return showAccessLink(r);
     toast(t(r.sent === "invite" ? "user.resend_done_invite" : "user.resend_done_reset", { email: r.email }));
   } catch (err) {
     toast(errMsg(err), true);
   }
+}
+
+// Link de acceso de un solo uso (solo admins): para copiarlo o mandarlo por
+// WhatsApp cuando el email no llega.
+function showAccessLink(r) {
+  const status = r.sent
+    ? `<div class="banner ok">${esc(t(r.sent === "invite" ? "user.resend_done_invite" : "user.resend_done_reset", { email: r.email }))}</div>`
+    : `<div class="banner warn">${esc(t("user.email_failed", { msg: r.email_error || "" }))}</div>`;
+  const wa = `https://wa.me/?text=${encodeURIComponent(t("user.wa_text", { link: r.link }))}`;
+  const { el } = openModal(t("user.link_title", { email: r.email }), `
+    ${status}
+    <p>${esc(t("user.link_text"))}</p>
+    <div class="field"><input class="input" id="al-link" dir="ltr" readonly value="${esc(r.link)}" /></div>
+    <div class="modal-foot" style="justify-content:flex-start">
+      <button type="button" class="btn primary" id="al-copy">${esc(t("user.copy"))}</button>
+      <a class="btn success" href="${esc(wa)}" target="_blank" rel="noopener">${esc(t("user.whatsapp"))}</a>
+    </div>`);
+  el.querySelector("#al-copy").addEventListener("click", async () => {
+    const input = el.querySelector("#al-link");
+    try { await navigator.clipboard.writeText(input.value); } catch { input.select(); document.execCommand("copy"); }
+    toast(t("user.copied"));
+  });
 }
 
 /* ---------- Revisión de un pago ---------- */

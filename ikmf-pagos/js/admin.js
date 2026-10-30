@@ -49,7 +49,10 @@ function renderUsers() {
   $("users-body").innerHTML = list.map((u) => {
     let actions = "";
     if (u.role === "admin") {
-      actions = `<span class="sub">${esc(t("adm.sql_managed"))}</span>`;
+      // A otros admins solo se les puede reenviar el acceso; el resto, por SQL.
+      actions = u.id === ME.id
+        ? `<span class="sub">${esc(t("adm.sql_managed"))}</span>`
+        : `<button class="btn sm ghost" data-resend="${u.id}">${esc(t("user.resend"))}</button>`;
     } else {
       const st = accountState(u);
       if (st === "pending") actions += `<button class="btn sm success" data-activate="${u.id}">${esc(t("user.activate"))}</button> `;

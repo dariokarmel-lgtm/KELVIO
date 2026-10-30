@@ -375,6 +375,13 @@ const DICT = {
     "dash.subtitle_dir": "Resumen de pagos de los instructores de tu país.",
     "login.remember": "Recordarme",
     "dash.tap_to_validate": "Tocá para validar",
+    "user.link_title": "Link de acceso — {email}",
+    "user.link_text": "Si el email no le llega, mandale este link (por WhatsApp, por ejemplo). Al abrirlo elige su contraseña y entra. Sirve una sola vez y vence en 1 hora: si vence, generá otro con «Reenviar acceso».",
+    "user.copy": "Copiar link",
+    "user.copied": "Link copiado.",
+    "user.whatsapp": "Enviar por WhatsApp",
+    "user.wa_text": "Hola! Este es tu acceso a IKMF Pagos (elegí tu contraseña al abrirlo): {link}",
+    "user.email_failed": "No se pudo enviar el email. Usá el link de abajo. {msg}",
   },
 
   en: {
@@ -734,6 +741,13 @@ const DICT = {
     "dash.subtitle_dir": "Payment summary for the instructors in your country.",
     "login.remember": "Remember me",
     "dash.tap_to_validate": "Tap to validate",
+    "user.link_title": "Access link — {email}",
+    "user.link_text": "If the email doesn't arrive, send them this link (by WhatsApp, for example). When they open it they choose their password and sign in. It works once and expires in 1 hour: if it expires, generate another one with “Resend access”.",
+    "user.copy": "Copy link",
+    "user.copied": "Link copied.",
+    "user.whatsapp": "Send by WhatsApp",
+    "user.wa_text": "Hi! This is your access to IKMF Fees (choose your password when you open it): {link}",
+    "user.email_failed": "The email could not be sent. Use the link below. {msg}",
   },
 
   he: {
@@ -1093,6 +1107,13 @@ const DICT = {
     "dash.subtitle_dir": "סיכום התשלומים של המדריכים במדינה שלכם.",
     "login.remember": "זכור אותי",
     "dash.tap_to_validate": "הקישו לאישור",
+    "user.link_title": "קישור גישה — {email}",
+    "user.link_text": "אם האימייל לא מגיע, שלחו לו את הקישור הזה (למשל בוואטסאפ). כשיפתח אותו יבחר סיסמה וייכנס. הקישור חד־פעמי ותקף לשעה: אם פג תוקפו, צרו חדש עם «שליחת גישה מחדש».",
+    "user.copy": "העתקת הקישור",
+    "user.copied": "הקישור הועתק.",
+    "user.whatsapp": "שליחה בוואטסאפ",
+    "user.wa_text": "שלום! זו הגישה שלך ל־IKMF תשלומים (בחר סיסמה כשתפתח): {link}",
+    "user.email_failed": "לא ניתן היה לשלוח את האימייל. השתמשו בקישור למטה. {msg}",
   },
 
   fr: {
@@ -1452,6 +1473,13 @@ const DICT = {
     "dash.subtitle_dir": "Résumé des paiements des instructeurs de votre pays.",
     "login.remember": "Se souvenir de moi",
     "dash.tap_to_validate": "Touchez pour valider",
+    "user.link_title": "Lien d'accès — {email}",
+    "user.link_text": "Si l'e-mail n'arrive pas, envoyez-lui ce lien (par WhatsApp, par exemple). En l'ouvrant, il choisit son mot de passe et se connecte. Il ne sert qu'une fois et expire au bout d'1 heure : s'il expire, générez-en un autre avec « Renvoyer l'accès ».",
+    "user.copy": "Copier le lien",
+    "user.copied": "Lien copié.",
+    "user.whatsapp": "Envoyer par WhatsApp",
+    "user.wa_text": "Bonjour ! Voici ton accès à IKMF Cotisations (choisis ton mot de passe en l'ouvrant) : {link}",
+    "user.email_failed": "L'e-mail n'a pas pu être envoyé. Utilisez le lien ci-dessous. {msg}",
   },
 
   de: {
@@ -1811,6 +1839,13 @@ const DICT = {
     "dash.subtitle_dir": "Zahlungsübersicht der Instruktoren deines Landes.",
     "login.remember": "Angemeldet bleiben",
     "dash.tap_to_validate": "Zum Prüfen tippen",
+    "user.link_title": "Zugangslink — {email}",
+    "user.link_text": "Wenn die E-Mail nicht ankommt, schick der Person diesen Link (z. B. per WhatsApp). Beim Öffnen wählt sie ihr Passwort und meldet sich an. Der Link gilt einmal und läuft nach 1 Stunde ab: Ist er abgelaufen, erzeuge mit „Zugang erneut senden“ einen neuen.",
+    "user.copy": "Link kopieren",
+    "user.copied": "Link kopiert.",
+    "user.whatsapp": "Per WhatsApp senden",
+    "user.wa_text": "Hallo! Das ist dein Zugang zu IKMF Beiträge (wähle beim Öffnen dein Passwort): {link}",
+    "user.email_failed": "Die E-Mail konnte nicht gesendet werden. Verwende den Link unten. {msg}",
   },
 
   it: {
@@ -2170,6 +2205,13 @@ const DICT = {
     "dash.subtitle_dir": "Riepilogo dei pagamenti degli istruttori del tuo paese.",
     "login.remember": "Ricordami",
     "dash.tap_to_validate": "Tocca per convalidare",
+    "user.link_title": "Link di accesso — {email}",
+    "user.link_text": "Se l'email non arriva, mandagli questo link (per esempio su WhatsApp). Aprendolo sceglie la password ed entra. Vale una sola volta e scade dopo 1 ora: se scade, generane un altro con «Reinvia accesso».",
+    "user.copy": "Copia link",
+    "user.copied": "Link copiato.",
+    "user.whatsapp": "Invia su WhatsApp",
+    "user.wa_text": "Ciao! Questo è il tuo accesso a IKMF Quote (scegli la password quando lo apri): {link}",
+    "user.email_failed": "Non è stato possibile inviare l'email. Usa il link qui sotto. {msg}",
   },
 };
 
