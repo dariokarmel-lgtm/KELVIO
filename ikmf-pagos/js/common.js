@@ -286,9 +286,50 @@ function accountChip(profile) {
   return `<span class="chip ${cls}">${esc(text)}</span>`;
 }
 
+/* ---------- Regiones y primer mes de cobro por país ---------- */
+
+const REGIONS = ["latam", "north_america", "europe", "asia", "africa", "oceania"];
+
+function regionLabel(region) {
+  return t(region ? `region.${region}` : "region.none");
+}
+
+// Países conocidos por la página (cada página los registra al cargarlos),
+// para aplicar el primer mes de cobro de cada país.
+const COUNTRY_INDEX = new Map();
+function registerCountries(list) {
+  (list || []).forEach((c) => { if (c) COUNTRY_INDEX.set(c.id, c); });
+}
+
+// Primer mes que se le cobra a alguien: su propio inicio, pero nunca antes
+// del primer mes de cobro de su país (ej. Argentina desde noviembre 2026).
+function startMonthFor(p) {
+  const c = COUNTRY_INDEX.get(p.country_id) || (p.country && p.country.id === p.country_id ? p.country : null);
+  const first = c && c.first_month;
+  return first && first > p.start_month ? first : p.start_month;
+}
+
+/*
+ * Opciones del filtro "Todos / región / país". Valores: "" (todos),
+ * "r:<región>" o el id del país. Los países van agrupados por región.
+ */
+function regionCountryOptions(countries, selected) {
+  const opt = (value, label) => `<option value="${esc(value)}" ${value === selected ? "selected" : ""}>${esc(label)}</option>`;
+  const used = REGIONS.filter((r) => countries.some((c) => c.region === r));
+  let html = opt("", t("adm.all_countries"));
+  if (used.length) {
+    html += `<optgroup label="${esc(t("region.group"))}">${used.map((r) => opt(`r:${r}`, regionLabel(r))).join("")}</optgroup>`;
+  }
+  [...REGIONS, null].forEach((r) => {
+    const list = countries.filter((c) => (c.region || null) === r);
+    if (list.length) html += `<optgroup label="${esc(regionLabel(r))}">${list.map((c) => opt(c.id, c.name)).join("")}</optgroup>`;
+  });
+  return html;
+}
+
 // ¿Se le cobra `period` a esta persona? (alta, no pendiente, no de baja para ese mes)
 function billable(p, period) {
-  if (p.start_month > period) return false;
+  if (startMonthFor(p) > period) return false;
   if (p.end_month) return period <= p.end_month;
   return p.active;
 }
@@ -301,8 +342,9 @@ function dueMonthsFor(p, paymentOf) {
   if (!p.active && !p.end_month) return []; // pendiente de activación
   let last = addMonths(currentPeriod(), -1);
   if (p.end_month && p.end_month < last) last = p.end_month;
-  if (p.start_month > last) return [];
-  return periodsBetween(p.start_month, last).filter((period) => {
+  const start = startMonthFor(p);
+  if (start > last) return [];
+  return periodsBetween(start, last).filter((period) => {
     const pay = paymentOf(p.id, period);
     return !pay || pay.status === "rejected";
   });

@@ -22,6 +22,7 @@ async function load() {
   if (c.error) throw c.error;
   if (u.error) throw u.error;
   countries = c.data;
+  registerCountries(countries);
   users = u.data;
 }
 
@@ -95,6 +96,8 @@ function renderCountries() {
       <td><input class="input sm f-code" value="${esc(c.code)}" maxlength="2" style="width:60px" /></td>
       <td><input class="input sm f-currency" value="${esc(c.currency)}" maxlength="3" style="width:70px" /></td>
       <td><input class="input sm f-fee" type="number" min="0" step="0.01" value="${c.default_fee}" style="width:110px" /></td>
+      <td><select class="input sm f-region" style="width:150px">${regionOptions(c.region)}</select></td>
+      <td><input class="input sm f-first" type="month" value="${c.first_month ? c.first_month.slice(0, 7) : ""}" style="width:150px" /></td>
       <td>${directors.length
         ? directors.map((d) => `${esc(d.full_name || d.email)}${d.active ? "" : " " + accountChip(d)}`).join("<br>")
         : `<span class="sub">${esc(t("adm.no_director"))}</span>`}</td>
@@ -103,7 +106,7 @@ function renderCountries() {
         <button class="btn sm ghost" data-delete-country="${c.id}">${esc(t("common.delete"))}</button>
       </td>
     </tr>`;
-  }).join("") || `<tr><td colspan="6" class="empty">${esc(t("adm.no_countries"))}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="empty">${esc(t("adm.no_countries"))}</td></tr>`;
 }
 
 function renderAll() {
@@ -121,13 +124,21 @@ async function refresh() {
   renderAll();
 }
 
+function regionOptions(selected) {
+  return `<option value="">${esc(t("region.none"))}</option>` +
+    REGIONS.map((r) => `<option value="${r}" ${r === selected ? "selected" : ""}>${esc(regionLabel(r))}</option>`).join("");
+}
+
 function countryRow(prefix, root) {
   const get = (cls) => root.querySelector(cls).value.trim();
+  const first = get(`${prefix}first`);
   return {
     name: get(`${prefix}name`),
     code: get(`${prefix}code`).toUpperCase(),
     currency: get(`${prefix}currency`).toUpperCase(),
     default_fee: Number(get(`${prefix}fee`) || 0),
+    region: get(`${prefix}region`) || null,
+    first_month: first ? `${first}-01` : null,
   };
 }
 
@@ -179,6 +190,7 @@ document.addEventListener("click", (e) => {
 
 (async function init() {
   if (!(await requireRole(["admin"]))) return;
+  $("c-region").innerHTML = regionOptions("");
 
   ["u-search", "u-country", "u-role", "u-left"].forEach((id) => $(id).addEventListener("input", renderUsers));
   $("new-user-btn").addEventListener("click", () => openAdminUserForm(null));

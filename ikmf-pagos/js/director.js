@@ -66,6 +66,7 @@ async function loadCountries() {
   const { data, error } = await sb.from("countries").select("*").order("name");
   if (error) throw error;
   state.countries = isAdmin() ? data : data.filter((c) => c.id === ME.country_id);
+  registerCountries(data);
 }
 
 async function loadCountryData() {
@@ -255,7 +256,7 @@ function renderInstructors() {
       <td><span dir="ltr">${esc(p.email)}</span><div class="sub" dir="ltr">${esc(p.phone || "")}</div></td>
       <td>${accountChip(p)}</td>
       <td class="num">${fmtMoney(feeFor(p, countryOf(p)), currencyOf(p))}${p.monthly_fee === null ? `<div class="sub">${esc(t("dir.country_fee"))}</div>` : ""}</td>
-      <td>${fmtPeriod(p.start_month)}</td>
+      <td>${fmtPeriod(startMonthFor(p))}</td>
       <td class="num">${due.length
         ? redAmount(`${due.length} · ${fmtMoney(due.length * feeFor(p, countryOf(p)), currencyOf(p))}`)
         : esc(t("dir.up_to_date"))}</td>

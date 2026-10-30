@@ -66,6 +66,13 @@ create table if not exists public.profiles (
   created_at  timestamptz not null default now()
 );
 
+-- Región del país (filtro del dashboard) y primer mes que se cobra en ese
+-- país: nadie de ese país debe meses anteriores, aunque su alta sea anterior.
+alter table public.countries add column if not exists region text
+  check (region is null or region in ('latam', 'north_america', 'europe', 'asia', 'africa', 'oceania'));
+alter table public.countries add column if not exists first_month date
+  check (first_month is null or extract(day from first_month) = 1);
+
 -- Para proyectos creados con una versión anterior de este archivo.
 alter table public.profiles add column if not exists end_month date
   check (end_month is null or extract(day from end_month) = 1);

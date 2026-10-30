@@ -71,6 +71,7 @@ api/manage-user.php       Alta / edición / baja de usuarios (service_role)
 api/config.example.php    Modelo del archivo de secretos (va FUERA de public_html)
 .htaccess           HTTPS, header Authorization para PHP, bloquea archivos internos
 supabase/schema.sql Tablas + RLS + triggers + bucket de Storage
+supabase/migrations/  Cambios a correr una vez sobre una base existente (SQL Editor)
 ```
 
 Sin build step: HTML/CSS/JS estático + `supabase-js` por CDN + un endpoint PHP (necesita

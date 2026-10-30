@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title data-i18n="title.admin">Administración — IKMF Pagos</title>
-<link rel="stylesheet" href="css/style.css?v=20261031b" />
+<link rel="stylesheet" href="css/style.css?v=20261031c" />
 </head>
 <body data-page="admin">
 <main class="container">
@@ -67,6 +67,8 @@
               <th data-i18n="col.code">Código</th>
               <th data-i18n="col.currency">Moneda</th>
               <th data-i18n="col.default_fee">Cuota por defecto</th>
+              <th data-i18n="col.region">Región</th>
+              <th data-i18n="col.first_month">Primer mes de cobro</th>
               <th data-i18n="col.directors">Director(es)</th>
               <th></th>
             </tr>
@@ -82,6 +84,8 @@
         <input class="input" id="c-code" data-i18n-ph="adm.ph_code" maxlength="2" style="width:140px" />
         <input class="input" id="c-currency" data-i18n-ph="adm.ph_currency" maxlength="3" style="width:140px" />
         <input class="input" id="c-fee" type="number" min="0" step="0.01" data-i18n-ph="adm.ph_fee" style="width:120px" />
+        <select class="input" id="c-region" style="width:170px"></select>
+        <input class="input" id="c-first" type="month" style="width:170px" />
         <button class="btn primary" type="submit" data-i18n="adm.add">Agregar</button>
       </form>
     </div>
@@ -89,9 +93,9 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="js/config.js?v=20261031b"></script>
-<script src="js/i18n.js?v=20261031b"></script>
-<script src="js/common.js?v=20261031b"></script>
-<script src="js/admin.js?v=20261031b"></script>
+<script src="js/config.js?v=20261031c"></script>
+<script src="js/i18n.js?v=20261031c"></script>
+<script src="js/common.js?v=20261031c"></script>
+<script src="js/admin.js?v=20261031c"></script>
 </body>
 </html>

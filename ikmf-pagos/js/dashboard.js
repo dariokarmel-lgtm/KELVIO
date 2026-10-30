@@ -10,7 +10,7 @@ const state = {
   people: [],    // perfiles no admin de todos los países
   payments: [],  // todos los pagos
   period: currentPeriod(),
-  countryId: "", // "" = todos
+  filter: "",    // "" = todos · "r:<región>" · id de país
 };
 
 function $(id) { return document.getElementById(id); }
@@ -32,8 +32,16 @@ function paymentOf(personId, period) {
   return paymentIndex.get(`${personId}|${period}`);
 }
 
+function countryInFilter(c) {
+  if (!state.filter) return true;
+  if (state.filter.startsWith("r:")) return c.region === state.filter.slice(2);
+  return c.id === state.filter;
+}
+
 function inFilter(p) {
-  return !state.countryId || p.country_id === state.countryId;
+  if (!state.filter) return true;
+  const c = countryById(p.country_id);
+  return !!c && countryInFilter(c);
 }
 
 function redAmount(text) {
@@ -51,6 +59,7 @@ async function load() {
   // El director solo recibe (por RLS) su país y sus instructores; sus propios
   // pagos no se cuentan acá (los aprueba un admin).
   state.countries = isAdmin() ? countries : countries.filter((c) => c.id === ME.country_id);
+  registerCountries(countries);
   state.people = isAdmin() ? people : people.filter((p) => p.id !== ME.id);
   state.payments = isAdmin() ? payments : payments.filter((p) => p.instructor_id !== ME.id);
   paymentIndex = new Map(payments.map((p) => [`${p.instructor_id}|${p.period}`, p]));
@@ -182,7 +191,7 @@ function renderPaid(list) {
 
 function renderCountries() {
   const period = state.period;
-  const rows = state.countries.filter((c) => !state.countryId || c.id === state.countryId).map((c) => {
+  const rows = state.countries.filter(countryInFilter).map((c) => {
     const people = state.people.filter((p) => p.country_id === c.id);
     const billablePeople = people.filter((p) => billable(p, period));
     let approved = 0, pending = 0, unpaid = 0, collected = 0, expected = 0;
@@ -194,10 +203,10 @@ function renderCountries() {
       else { approved++; collected += Number(pay.amount); }
     });
     return { c, total: billablePeople.length, approved, pending, unpaid, collected, expected };
-  }).filter((r) => r.total || state.countryId);
+  }).filter((r) => r.total || (state.filter && !state.filter.startsWith("r:")));
 
   $("countries-body").innerHTML = rows.map((r) => `<tr>
-      <td><strong>${esc(r.c.name)}</strong></td>
+      <td><strong>${esc(r.c.name)}</strong><div class="sub">${esc(regionLabel(r.c.region))}</div></td>
       <td class="num">${r.total}</td>
       <td class="num">${r.approved}</td>
       <td class="num">${r.pending}</td>
@@ -287,7 +296,7 @@ document.addEventListener("keydown", (e) => {
       return;
     }
     // Director: su país fijo, sin selector ni resumen por país.
-    state.countryId = ME.country_id;
+    state.filter = ME.country_id;
     document.querySelector('[data-i18n="dash.title"]').textContent = t("dir.title_country", { country: ME.country.name });
     document.querySelector('[data-i18n="dash.subtitle"]').textContent = t("dash.subtitle_dir");
     document.querySelector('[data-i18n="dash.pending_title"]').textContent = t("dir.pending_title_dir");
@@ -306,7 +315,6 @@ document.addEventListener("keydown", (e) => {
 
   if (!isAdmin()) return;
   const sel = $("country-filter");
-  sel.innerHTML = `<option value="">${esc(t("adm.all_countries"))}</option>` +
-    state.countries.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("");
-  sel.addEventListener("change", () => { state.countryId = sel.value; render(); });
+  sel.innerHTML = regionCountryOptions(state.countries, state.filter);
+  sel.addEventListener("change", () => { state.filter = sel.value; render(); });
 })();

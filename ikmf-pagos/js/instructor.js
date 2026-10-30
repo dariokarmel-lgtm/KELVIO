@@ -33,7 +33,7 @@ async function loadPayments() {
 function render() {
   const fee = myFee();
   $("fee-line").textContent = ME.country
-    ? t("inst.fee_line", { country: ME.country.name, fee: fmtMoney(fee, myCurrency()), month: fmtPeriod(ME.start_month) })
+    ? t("inst.fee_line", { country: ME.country.name, fee: fmtMoney(fee, myCurrency()), month: fmtPeriod(startMonthFor(ME)) })
     : t("inst.no_country");
 
   const banner = $("banner");
@@ -48,7 +48,9 @@ function render() {
   const now = currentPeriod();
   const lastBillable = ME.end_month && ME.end_month < now ? ME.end_month : now;
   const lastPeriod = payments.reduce((max, p) => (p.period > max ? p.period : max), lastBillable);
-  const periods = periodsBetween(ME.start_month, lastPeriod);
+  // Si el cobro empieza más adelante (ej. Argentina en noviembre), se muestra ese mes.
+  const start = startMonthFor(ME);
+  const periods = periodsBetween(start, lastPeriod > start ? lastPeriod : start);
   payments.forEach((p) => { if (!periods.includes(p.period)) periods.push(p.period); });
   periods.sort().reverse();
 
@@ -107,7 +109,7 @@ function render() {
 function openPaymentForm({ existing, period } = {}) {
   const now = currentPeriod();
   // Meses elegibles: desde el inicio hasta 3 meses adelantados, sin pago cargado.
-  const options = periodsBetween(ME.start_month, addMonths(now, 3))
+  const options = periodsBetween(startMonthFor(ME), addMonths(now, 3))
     .filter((p) => !paymentFor(p) || (existing && existing.period === p));
   const selected = existing ? existing.period : period || options.find((p) => p <= now && !paymentFor(p)) || now;
 
@@ -238,6 +240,7 @@ document.addEventListener("click", (e) => {
 
 (async function init() {
   if (!(await requireRole())) return;
+  registerCountries([ME.country]);
   $("new-payment-btn").addEventListener("click", () => openPaymentForm());
   try {
     await refresh();
