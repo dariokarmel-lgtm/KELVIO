@@ -147,7 +147,7 @@ function openPaymentForm({ existing, period } = {}) {
       </div>
       <div class="field">
         <label for="p-file">${esc(t("inst.f_file"))}</label>
-        <input class="input" id="p-file" type="file" accept="image/*,application/pdf" />
+        ${fileField("p-file")}
         ${existing && existing.receipt_path ? `<span class="sub">${esc(t("inst.f_file_keep"))}</span>` : ""}
       </div>
       <div class="field">

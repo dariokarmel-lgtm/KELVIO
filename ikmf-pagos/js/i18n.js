@@ -382,6 +382,8 @@ const DICT = {
     "user.whatsapp": "Enviar por WhatsApp",
     "user.wa_text": "Hola! Este es tu acceso a IKMF Pagos (elegí tu contraseña al abrirlo): {link}",
     "user.email_failed": "No se pudo enviar el email. Usá el link de abajo. {msg}",
+    "file.choose": "Elegir archivo",
+    "file.none": "Ningún archivo elegido",
   },
 
   en: {
@@ -748,6 +750,8 @@ const DICT = {
     "user.whatsapp": "Send by WhatsApp",
     "user.wa_text": "Hi! This is your access to IKMF Fees (choose your password when you open it): {link}",
     "user.email_failed": "The email could not be sent. Use the link below. {msg}",
+    "file.choose": "Choose file",
+    "file.none": "No file chosen",
   },
 
   he: {
@@ -1114,6 +1118,8 @@ const DICT = {
     "user.whatsapp": "שליחה בוואטסאפ",
     "user.wa_text": "שלום! זו הגישה שלך ל־IKMF תשלומים (בחר סיסמה כשתפתח): {link}",
     "user.email_failed": "לא ניתן היה לשלוח את האימייל. השתמשו בקישור למטה. {msg}",
+    "file.choose": "בחירת קובץ",
+    "file.none": "לא נבחר קובץ",
   },
 
   fr: {
@@ -1480,6 +1486,8 @@ const DICT = {
     "user.whatsapp": "Envoyer par WhatsApp",
     "user.wa_text": "Bonjour ! Voici ton accès à IKMF Cotisations (choisis ton mot de passe en l'ouvrant) : {link}",
     "user.email_failed": "L'e-mail n'a pas pu être envoyé. Utilisez le lien ci-dessous. {msg}",
+    "file.choose": "Choisir un fichier",
+    "file.none": "Aucun fichier choisi",
   },
 
   de: {
@@ -1846,6 +1854,8 @@ const DICT = {
     "user.whatsapp": "Per WhatsApp senden",
     "user.wa_text": "Hallo! Das ist dein Zugang zu IKMF Beiträge (wähle beim Öffnen dein Passwort): {link}",
     "user.email_failed": "Die E-Mail konnte nicht gesendet werden. Verwende den Link unten. {msg}",
+    "file.choose": "Datei auswählen",
+    "file.none": "Keine Datei ausgewählt",
   },
 
   it: {
@@ -2212,6 +2222,8 @@ const DICT = {
     "user.whatsapp": "Invia su WhatsApp",
     "user.wa_text": "Ciao! Questo è il tuo accesso a IKMF Quote (scegli la password quando lo apri): {link}",
     "user.email_failed": "Non è stato possibile inviare l'email. Usa il link qui sotto. {msg}",
+    "file.choose": "Scegli file",
+    "file.none": "Nessun file scelto",
   },
 };
 

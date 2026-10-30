@@ -316,7 +316,7 @@ function openManualPayment(personId, period) {
       </div>
       <div class="field">
         <label for="m-file">${esc(t("man.file"))}</label>
-        <input class="input" id="m-file" type="file" accept="image/*,application/pdf" />
+        ${fileField("m-file")}
       </div>
       <div class="field">
         <label for="m-note">${esc(t("man.note"))}</label>

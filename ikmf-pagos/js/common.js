@@ -310,6 +310,28 @@ function dueMonthsFor(p, paymentOf) {
 
 /* ---------- Comprobantes ---------- */
 
+/*
+ * Selector de archivo traducido. El <input type="file"> nativo muestra su
+ * botón en el idioma del navegador; acá se oculta y se usa un botón propio
+ * con t(). El input sigue con el mismo id, así que .files funciona igual.
+ */
+function fileField(id) {
+  return `<label class="file-pick">
+    <input id="${id}" type="file" accept="image/*,application/pdf" />
+    <span class="btn ghost sm">${esc(t("file.choose"))}</span>
+    <span class="file-name">${esc(t("file.none"))}</span>
+  </label>`;
+}
+
+document.addEventListener("change", (e) => {
+  const input = e.target;
+  if (!input.matches || !input.matches(".file-pick input[type=file]")) return;
+  const name = input.closest(".file-pick").querySelector(".file-name");
+  const file = input.files && input.files[0];
+  name.textContent = file ? file.name : t("file.none");
+  name.classList.toggle("chosen", !!file);
+});
+
 function validateReceipt(file) {
   if (!file) return t("receipt.err_missing");
   if (file.size > MAX_RECEIPT_BYTES) return t("receipt.err_size");
