@@ -183,7 +183,7 @@ function renderMonth() {
       actions = `<button class="btn sm ghost" data-manual="${p.id}" data-period="${period}">${esc(t("dir.register"))}</button>`;
     }
     return `<tr>
-      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong><div class="sub">${countryTag(p)}${esc(p.email)}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div></td>
+      <td>${pay ? payNameLink(p.full_name || t("common.no_name"), pay) : `<strong>${esc(p.full_name || t("common.no_name"))}</strong>`}<div class="sub">${countryTag(p)}${esc(p.email)}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div></td>
       <td>${chip(status)}</td>
       <td class="num">${fmtMoney(feeFor(p, countryOf(p)), currencyOf(p))}</td>
       <td class="num">${pay ? fmtMoney(pay.amount, pay.currency) : "—"}</td>
@@ -212,7 +212,7 @@ function renderPending() {
     const p = pay.instructor || person(pay.instructor_id) || {};
     const c = countryById(p.country_id);
     return `<tr>
-      <td><strong>${esc(p.full_name || p.email || "—")}</strong></td>
+      <td>${payNameLink(p.full_name || p.email || "—", pay)}</td>
       ${admin ? `<td>${esc(c ? c.name : "—")}</td>` : ""}
       <td>${fmtPeriod(pay.period)}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>

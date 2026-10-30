@@ -108,9 +108,10 @@ function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, to
     stat("", "dash.kpi_activation", toActivate.length);
 }
 
-function personCell(p) {
+function personCell(p, pay) {
   const c = countryById(p.country_id);
-  return `<strong>${esc(p.full_name || p.email || t("common.no_name"))}</strong>
+  const name = p.full_name || p.email || t("common.no_name");
+  return `${pay ? payNameLink(name, pay) : `<strong>${esc(name)}</strong>`}
     <div class="sub">${esc(c ? c.name : "—")}${p.role === "director" ? " · " + esc(t("dir.director_tag")) : ""}</div>`;
 }
 
@@ -120,7 +121,7 @@ function renderPending(list) {
   $("pending-body").innerHTML = list.map((pay) => {
     const p = person(pay.instructor_id) || {};
     return `<tr>
-      <td>${personCell(p)}</td>
+      <td>${personCell(p, pay)}</td>
       <td>${fmtPeriod(pay.period)}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
       <td>${fmtDate(pay.updated_at)}</td>
@@ -163,7 +164,7 @@ function renderPaid(list) {
     const p = person(pay.instructor_id) || {};
     const c = countryById(p.country_id);
     return `<tr>
-      <td><strong>${esc(p.full_name || p.email || "—")}</strong></td>
+      <td>${payNameLink(p.full_name || p.email || "—", pay)}</td>
       <td>${esc(c ? c.name : "—")}</td>
       <td class="num">${fmtMoney(pay.amount, pay.currency)}</td>
       <td>${fmtDate(pay.paid_on)}</td>

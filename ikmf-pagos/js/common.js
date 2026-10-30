@@ -556,6 +556,13 @@ async function resendAccess(user) {
 
 /* ---------- Revisión de un pago ---------- */
 
+// Nombre del instructor como link: al tocarlo se abre la ficha del pago con
+// el comprobante (la abre el handler de data-review de cada página).
+function payNameLink(name, pay) {
+  const clip = pay.receipt_path ? ` <span class="clip" aria-hidden="true">📎</span>` : "";
+  return `<button type="button" class="name-link" data-review="${pay.id}" title="${esc(t("receipt.alt"))}">${esc(name)}${clip}</button>`;
+}
+
 /*
  * Ficha de un pago con su comprobante. Solo un admin ve Aprobar / Rechazar
  * (y la base solo se lo permite a un admin). onDone() se llama al cambiar
