@@ -383,8 +383,8 @@ insert into public.countries (name, code, currency, default_fee) values
   ('Argentina', 'AR', 'USD', 15),
   ('Uruguay',   'UY', 'USD', 15),
   ('Chile',     'CL', 'USD', 15),
-  ('México',    'MX', 'USD', 15),
-  ('España',    'ES', 'USD', 15),
+  ('Mexico',    'MX', 'USD', 15),
+  ('Spain',     'ES', 'USD', 15),
   ('Israel',    'IL', 'USD', 15)
 on conflict (code) do nothing;
 
