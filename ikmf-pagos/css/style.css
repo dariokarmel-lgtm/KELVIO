@@ -144,6 +144,7 @@ tr.row-link:hover td, tr.row-link:active td { background: var(--color-blue-bg); 
 .stat.clickable:hover, .stat.clickable:focus-visible { box-shadow: var(--shadow-lg); outline: none; }
 .stat.clickable:active { transform: scale(.98); }
 .stat.clickable .sub { color: var(--color-blue); font-weight: 600; }
+.stat .users-sub { color: var(--color-text-muted) !important; font-weight: 500 !important; font-size: 12px; line-height: 1.35; }
 
 .file-pick {
   display: flex; align-items: center; gap: 12px; cursor: pointer;

@@ -8,6 +8,7 @@
 const state = {
   countries: [],
   people: [],    // perfiles no admin de todos los países
+  users: [],     // todas las cuentas visibles (incluye admins), para la tarjeta "Usuarios"
   payments: [],  // todos los pagos
   period: currentPeriod(),
   filter: "",    // "" = todos · "r:<región>" · id de país
@@ -51,14 +52,16 @@ function redAmount(text) {
 async function load() {
   const [countries, people, payments] = await Promise.all([
     fetchAll(() => sb.from("countries").select("*").order("name")),
-    fetchAll(() => sb.from("profiles").select("*").neq("role", "admin").order("full_name")),
+    fetchAll(() => sb.from("profiles").select("*").order("full_name")),
     fetchAll(() => sb.from("payments").select("*").order("created_at")),
   ]);
   // El director solo recibe (por RLS) su país y sus instructores; sus propios
   // pagos no se cuentan acá (los aprueba un admin).
   state.countries = isAdmin() ? countries : countries.filter((c) => c.id === ME.country_id);
   registerCountries(countries);
-  state.people = isAdmin() ? people : people.filter((p) => p.id !== ME.id);
+  state.users = people;
+  const nonAdmin = people.filter((p) => p.role !== "admin");
+  state.people = isAdmin() ? nonAdmin : nonAdmin.filter((p) => p.id !== ME.id);
   state.payments = isAdmin() ? payments : payments.filter((p) => p.instructor_id !== ME.id);
   paymentIndex = new Map(payments.map((p) => [`${p.instructor_id}|${p.period}`, p]));
 }
@@ -96,6 +99,7 @@ function render() {
   const toActivate = people.filter((p) => accountState(p) === "pending");
 
   renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, toActivate });
+  renderUsersCard();
   renderPending(pending);
   renderAlerts(alerts);
   renderPaid(approvedMonth);
@@ -104,6 +108,33 @@ function render() {
 
 // Pendientes que se ven ahora (para la ventana que abre la tarjeta "Por validar").
 let currentPending = [];
+
+/*
+ * Tarjeta "Usuarios": el mismo total que Administración → Usuarios (sin
+ * contar bajas), con el desglose por rol. Con un filtro de región/país
+ * cuenta solo las cuentas de ese filtro (los admins no tienen país).
+ */
+function renderUsersCard() {
+  const list = state.users.filter((u) => accountState(u) !== "left" && (!state.filter || inFilter(u)));
+  const n = (fn) => list.filter(fn).length;
+  const left = state.users.filter((u) => accountState(u) === "left" && (!state.filter || inFilter(u))).length;
+  const parts = [
+    t("dash.users_breakdown", {
+      i: n((u) => u.role === "instructor"),
+      d: n((u) => u.role === "director"),
+      a: n((u) => u.role === "admin"),
+    }),
+  ];
+  const pend = n((u) => accountState(u) === "pending");
+  if (pend) parts.push(t("dash.users_pending", { n: pend }));
+  if (left) parts.push(t("dash.users_left", { n: left }));
+  const card = document.createElement("div");
+  card.className = "stat" + (isAdmin() ? " clickable" : "");
+  if (isAdmin()) { card.dataset.kpi = "users"; card.setAttribute("role", "button"); card.tabIndex = 0; }
+  card.innerHTML = `<div class="label">${esc(t("dash.kpi_users"))}</div><div class="value">${list.length}</div>
+    <div class="sub users-sub">${esc(parts.join(" · "))}</div>`;
+  $("kpis").prepend(card);
+}
 
 function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, toActivate }) {
   currentPending = pending;
@@ -273,6 +304,7 @@ document.addEventListener("click", (e) => {
   const kpi = e.target.closest("[data-kpi]");
   if (!kpi) return;
   if (kpi.dataset.kpi === "pending") return openPendingModal();
+  if (kpi.dataset.kpi === "users") { location.href = "admin.html"; return; }
   const section = { paid: "paid-title", alerts: "alerts-badge" }[kpi.dataset.kpi];
   $(section)?.closest(".card")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });

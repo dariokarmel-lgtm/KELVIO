@@ -394,6 +394,10 @@ const DICT = {
     "region.group": "Regiones",
     "col.region": "Región",
     "col.first_month": "Primer mes de cobro",
+    "dash.kpi_users": "Usuarios",
+    "dash.users_breakdown": "{i} instructores · {d} directores · {a} admins",
+    "dash.users_pending": "{n} pendientes de activación",
+    "dash.users_left": "{n} de baja",
   },
 
   en: {
@@ -772,6 +776,10 @@ const DICT = {
     "region.group": "Regions",
     "col.region": "Region",
     "col.first_month": "First billed month",
+    "dash.kpi_users": "Users",
+    "dash.users_breakdown": "{i} instructors · {d} directors · {a} admins",
+    "dash.users_pending": "{n} pending activation",
+    "dash.users_left": "{n} deactivated",
   },
 
   he: {
@@ -1150,6 +1158,10 @@ const DICT = {
     "region.group": "אזורים",
     "col.region": "אזור",
     "col.first_month": "חודש החיוב הראשון",
+    "dash.kpi_users": "משתמשים",
+    "dash.users_breakdown": "{i} מדריכים · {d} מנהלי מדינה · {a} מנהלי מערכת",
+    "dash.users_pending": "{n} ממתינים להפעלה",
+    "dash.users_left": "{n} מושבתים",
   },
 
   fr: {
@@ -1528,6 +1540,10 @@ const DICT = {
     "region.group": "Régions",
     "col.region": "Région",
     "col.first_month": "Premier mois facturé",
+    "dash.kpi_users": "Utilisateurs",
+    "dash.users_breakdown": "{i} instructeurs · {d} directeurs · {a} admins",
+    "dash.users_pending": "{n} en attente d'activation",
+    "dash.users_left": "{n} désactivés",
   },
 
   de: {
@@ -1906,6 +1922,10 @@ const DICT = {
     "region.group": "Regionen",
     "col.region": "Region",
     "col.first_month": "Erster abgerechneter Monat",
+    "dash.kpi_users": "Benutzer",
+    "dash.users_breakdown": "{i} Instruktoren · {d} Direktoren · {a} Admins",
+    "dash.users_pending": "{n} Aktivierung ausstehend",
+    "dash.users_left": "{n} deaktiviert",
   },
 
   it: {
@@ -2284,6 +2304,10 @@ const DICT = {
     "region.group": "Regioni",
     "col.region": "Regione",
     "col.first_month": "Primo mese addebitato",
+    "dash.kpi_users": "Utenti",
+    "dash.users_breakdown": "{i} istruttori · {d} direttori · {a} admin",
+    "dash.users_pending": "{n} in attesa di attivazione",
+    "dash.users_left": "{n} disattivati",
   },
 };
 
