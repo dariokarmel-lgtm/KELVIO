@@ -108,6 +108,8 @@ function render() {
 
 // Pendientes que se ven ahora (para la ventana que abre la tarjeta "Por validar").
 let currentPending = [];
+let currentUnpaid = [];
+let currentToActivate = [];
 
 /*
  * Tarjeta "Usuarios": el mismo total que Administración → Usuarios (sin
@@ -138,6 +140,8 @@ function renderUsersCard() {
 
 function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, toActivate }) {
   currentPending = pending;
+  currentUnpaid = unpaid;
+  currentToActivate = toActivate;
   // `kpi` hace la tarjeta tocable: abre la ventana de pendientes o lleva a su sección.
   const stat = (cls, label, value, sub, kpi) =>
     `<div class="stat ${cls}${kpi ? " clickable" : ""}"${kpi ? ` data-kpi="${kpi}" role="button" tabindex="0"` : ""}><div class="label">${esc(t(label))}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
@@ -146,9 +150,9 @@ function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, to
     stat("green", "dash.kpi_approved", approvedMonth.length, esc(t("dash.of_billable", { n: billablePeople.length })), "paid") +
     stat("green", "dash.kpi_collected", `<span style="font-size:.8em">${sumByCurrency(approvedMonth)}</span>`, "", "paid") +
     stat("yellow", "dash.kpi_pending", pending.length, pending.length ? esc(t("dash.tap_to_validate")) : "", "pending") +
-    stat("red", current ? "stat.unpaid_yet" : "dash.kpi_unpaid", unpaid.length) +
+    stat("red", current ? "stat.unpaid_yet" : "dash.kpi_unpaid", unpaid.length, unpaid.length ? esc(t("dash.tap_to_see")) : "", "unpaid") +
     stat("red", "dash.kpi_overdue", alerts.length, "", "alerts") +
-    stat("", "dash.kpi_activation", toActivate.length);
+    stat("", "dash.kpi_activation", toActivate.length, toActivate.length ? esc(t("dash.tap_to_see")) : "", "activation");
 }
 
 function personCell(p, pay) {
@@ -272,6 +276,59 @@ function openReview(paymentId) {
 }
 
 // Ventana con todos los pagos por validar; tocar uno abre su comprobante.
+// Ventana con quienes no pagaron el mes elegido; desde su país se registra el pago.
+function openUnpaidModal() {
+  const list = [...currentUnpaid].sort((a, b) =>
+    ((countryById(a.country_id) || {}).name || "").localeCompare((countryById(b.country_id) || {}).name || "")
+    || (a.full_name || "").localeCompare(b.full_name || ""));
+  const rows = list.map((p) => {
+    const c = countryById(p.country_id);
+    const pay = paymentOf(p.id, state.period);
+    return `<tr>
+      <td><strong>${esc(p.full_name || p.email)}</strong><div class="sub">${esc(c ? c.name : "—")}</div></td>
+      <td>${chip(monthStatus(pay, state.period))}</td>
+      <td class="num">${fmtMoney(feeFor(p, c), c ? c.currency : "USD")}</td>
+      <td><span dir="ltr">${esc(p.email)}</span>${p.phone ? `<div class="sub" dir="ltr">${esc(p.phone)}</div>` : ""}</td>
+      <td class="actions"><a class="btn sm ghost" href="director.html?country=${encodeURIComponent(p.country_id || "")}">${esc(t("dash.view_country"))}</a></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="5" class="empty">${esc(t("dash.unpaid_empty"))}</td></tr>`;
+  openModal(t("dash.unpaid_title", { month: fmtPeriod(state.period) }), `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>${esc(t("col.instructor"))}</th><th>${esc(t("col.status"))}</th>
+        <th class="num">${esc(t("col.fee"))}</th><th>${esc(t("col.contact"))}</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`, { wide: true });
+}
+
+// Ventana con las cuentas pendientes de activación, con el botón Activar.
+function openActivationModal() {
+  const rows = currentToActivate.map((p) => {
+    const c = countryById(p.country_id);
+    return `<tr>
+      <td><strong>${esc(p.full_name || p.email)}</strong><div class="sub">${esc(c ? c.name : "—")} · ${esc(roleLabel(p.role))}</div></td>
+      <td><span dir="ltr">${esc(p.email)}</span>${p.phone ? `<div class="sub" dir="ltr">${esc(p.phone)}</div>` : ""}</td>
+      <td>${esc(t("dir.registered", { date: fmtDate(p.created_at) }))}</td>
+      <td class="actions"><button class="btn sm success" data-activate="${p.id}">${esc(t("user.activate"))}</button></td>
+    </tr>`;
+  }).join("") || `<tr><td colspan="4" class="empty">${esc(t("dash.activation_empty"))}</td></tr>`;
+  const { el, close } = openModal(t("dash.kpi_activation"), `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>${esc(t("col.user"))}</th><th>${esc(t("col.contact"))}</th><th></th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`, { wide: true });
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-activate]");
+    if (!b) return;
+    e.stopPropagation();
+    const p = person(b.dataset.activate);
+    if (p) reactivateUser(p, async () => { close(); await refresh(); });
+  });
+}
+
 function openPendingModal() {
   const rows = currentPending.map((pay) => {
     const p = person(pay.instructor_id) || {};
@@ -304,6 +361,8 @@ document.addEventListener("click", (e) => {
   const kpi = e.target.closest("[data-kpi]");
   if (!kpi) return;
   if (kpi.dataset.kpi === "pending") return openPendingModal();
+  if (kpi.dataset.kpi === "unpaid") return openUnpaidModal();
+  if (kpi.dataset.kpi === "activation") return openActivationModal();
   if (kpi.dataset.kpi === "users") { location.href = "admin.html"; return; }
   const section = { paid: "paid-title", alerts: "alerts-badge" }[kpi.dataset.kpi];
   $(section)?.closest(".card")?.scrollIntoView({ behavior: "smooth", block: "start" });

@@ -398,6 +398,10 @@ const DICT = {
     "dash.users_breakdown": "{i} instructores · {d} directores · {a} admins",
     "dash.users_pending": "{n} pendientes de activación",
     "dash.users_left": "{n} de baja",
+    "dash.tap_to_see": "Tocá para ver",
+    "dash.unpaid_title": "Sin pagar — {month}",
+    "dash.unpaid_empty": "Todos pagaron este mes. 🎉",
+    "dash.activation_empty": "No hay cuentas pendientes de activación.",
   },
 
   en: {
@@ -780,6 +784,10 @@ const DICT = {
     "dash.users_breakdown": "{i} instructors · {d} directors · {a} admins",
     "dash.users_pending": "{n} pending activation",
     "dash.users_left": "{n} deactivated",
+    "dash.tap_to_see": "Tap to see",
+    "dash.unpaid_title": "Unpaid — {month}",
+    "dash.unpaid_empty": "Everyone has paid this month. 🎉",
+    "dash.activation_empty": "No accounts pending activation.",
   },
 
   he: {
@@ -1162,6 +1170,10 @@ const DICT = {
     "dash.users_breakdown": "{i} מדריכים · {d} מנהלי מדינה · {a} מנהלי מערכת",
     "dash.users_pending": "{n} ממתינים להפעלה",
     "dash.users_left": "{n} מושבתים",
+    "dash.tap_to_see": "הקישו לצפייה",
+    "dash.unpaid_title": "לא שילמו — {month}",
+    "dash.unpaid_empty": "כולם שילמו החודש. 🎉",
+    "dash.activation_empty": "אין חשבונות שממתינים להפעלה.",
   },
 
   fr: {
@@ -1544,6 +1556,10 @@ const DICT = {
     "dash.users_breakdown": "{i} instructeurs · {d} directeurs · {a} admins",
     "dash.users_pending": "{n} en attente d'activation",
     "dash.users_left": "{n} désactivés",
+    "dash.tap_to_see": "Touchez pour voir",
+    "dash.unpaid_title": "Impayés — {month}",
+    "dash.unpaid_empty": "Tout le monde a payé ce mois-ci. 🎉",
+    "dash.activation_empty": "Aucun compte en attente d'activation.",
   },
 
   de: {
@@ -1926,6 +1942,10 @@ const DICT = {
     "dash.users_breakdown": "{i} Instruktoren · {d} Direktoren · {a} Admins",
     "dash.users_pending": "{n} Aktivierung ausstehend",
     "dash.users_left": "{n} deaktiviert",
+    "dash.tap_to_see": "Zum Ansehen tippen",
+    "dash.unpaid_title": "Unbezahlt — {month}",
+    "dash.unpaid_empty": "Alle haben diesen Monat bezahlt. 🎉",
+    "dash.activation_empty": "Keine Konten warten auf Aktivierung.",
   },
 
   it: {
@@ -2308,6 +2328,10 @@ const DICT = {
     "dash.users_breakdown": "{i} istruttori · {d} direttori · {a} admin",
     "dash.users_pending": "{n} in attesa di attivazione",
     "dash.users_left": "{n} disattivati",
+    "dash.tap_to_see": "Tocca per vedere",
+    "dash.unpaid_title": "Non pagati — {month}",
+    "dash.unpaid_empty": "Hanno pagato tutti questo mese. 🎉",
+    "dash.activation_empty": "Nessun account in attesa di attivazione.",
   },
 };
 
