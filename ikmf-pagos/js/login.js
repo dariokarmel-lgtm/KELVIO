@@ -127,6 +127,7 @@ sb.auth.onAuthStateChange((event) => {
   applyI18n();
   $("lang-slot").innerHTML = langSelectHTML("login-lang");
   bindLangSelect($("login-lang"));
+  renderVersionFooter();
   $("f-remember").checked = rememberMe();
   if (!$("f-email").value) $("f-email").value = rememberedEmail();
   loadCountries();

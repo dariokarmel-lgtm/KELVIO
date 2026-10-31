@@ -273,3 +273,5 @@ textarea.input { min-height: 72px; resize: vertical; }
   box-shadow: var(--shadow-lg); font-weight: 600; z-index: 100; max-width: calc(100% - 32px);
 }
 .toast.error { background: var(--color-red); }
+
+.app-version { text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0 16px 20px; }

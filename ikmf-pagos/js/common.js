@@ -129,6 +129,16 @@ async function signOut() {
   location.href = "index.html";
 }
 
+// Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
+const APP_VERSION = "2026.10.31f";
+
+function renderVersionFooter() {
+  const f = document.createElement("footer");
+  f.className = "app-version";
+  f.textContent = `IKMF Pagos · v${APP_VERSION}`;
+  document.body.appendChild(f);
+}
+
 function renderTopbar() {
   const page = document.body.dataset.page;
   const links = [];
@@ -154,6 +164,7 @@ function renderTopbar() {
       </div>
     </div>`;
   document.body.prepend(bar);
+  renderVersionFooter();
   bar.querySelector("#logout-btn").addEventListener("click", signOut);
   bindLangSelect(bar.querySelector("#topbar-lang"));
 }
