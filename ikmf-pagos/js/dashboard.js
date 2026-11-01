@@ -227,16 +227,19 @@ function renderCountries() {
   const rows = state.countries.filter(countryInFilter).map((c) => {
     const people = state.people.filter((p) => p.country_id === c.id);
     const billablePeople = people.filter((p) => billable(p, period));
-    let approved = 0, pending = 0, unpaid = 0, collected = 0, expected = 0;
+    // "Por validar" cuenta los pendientes de cualquier mes (igual que la
+    // tarjeta y la lista "Pagos por validar"); el resto es del mes elegido.
+    const ids = new Set(people.map((p) => p.id));
+    const pending = state.payments.filter((pay) => pay.status === "pending" && ids.has(pay.instructor_id)).length;
+    let approved = 0, unpaid = 0, collected = 0, expected = 0;
     billablePeople.forEach((p) => {
       expected += feeFor(p, c);
       const pay = paymentOf(p.id, period);
       if (!pay || pay.status === "rejected") unpaid++;
-      else if (pay.status === "pending") pending++;
-      else { approved++; collected += Number(pay.amount); }
+      else if (pay.status === "approved") { approved++; collected += Number(pay.amount); }
     });
     return { c, total: billablePeople.length, approved, pending, unpaid, collected, expected };
-  }).filter((r) => r.total || (state.filter && !state.filter.startsWith("r:")));
+  }).filter((r) => r.total || r.pending || (state.filter && !state.filter.startsWith("r:")));
 
   $("countries-body").innerHTML = rows.map((r) => `<tr>
       <td><strong>${esc(r.c.name)}</strong><div class="sub">${esc(regionLabel(r.c.region))}</div></td>
