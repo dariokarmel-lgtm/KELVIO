@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.01";
+const APP_VERSION = "2026.11.01b";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -148,6 +148,7 @@ function renderTopbar() {
     links.push({ href: "director.html", key: "director", label: t(ME.role === "admin" ? "nav.countries" : "nav.my_country") });
   }
   if (ME.role === "admin") links.push({ href: "admin.html", key: "admin", label: t("nav.admin") });
+  links.push({ href: "settings.html", key: "settings", label: t("nav.settings") });
 
   const bar = document.createElement("header");
   bar.className = "topbar";
@@ -657,6 +658,58 @@ function showAccessLink(r) {
     const input = el.querySelector("#al-link");
     try { await navigator.clipboard.writeText(input.value); } catch { input.select(); document.execCommand("copy"); }
     toast(t("user.copied"));
+  });
+}
+
+// Contraseña aleatoria legible (sin caracteres que se confundan).
+function randomPassword(len = 12) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+  const buf = new Uint32Array(len);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (n) => chars[n % chars.length]).join("");
+}
+
+// (Solo admins) Definir la contraseña de otro usuario y compartirla.
+function openSetPassword(user) {
+  const { el, close } = openModal(t("user.pw_title", { name: user.full_name || user.email }), `
+    <p>${esc(t("user.pw_text"))}</p>
+    <div class="field">
+      <label for="sp-pass">${esc(t("user.pw_label"))}</label>
+      <div class="row" style="flex-wrap:nowrap">
+        <input class="input" id="sp-pass" type="text" dir="ltr" autocomplete="off" minlength="8" value="${randomPassword()}" />
+        <button type="button" class="btn ghost sm" id="sp-gen">${esc(t("user.pw_generate"))}</button>
+      </div>
+    </div>
+    <div id="sp-done"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn ghost" id="sp-cancel">${esc(t("common.cancel"))}</button>
+      <button type="button" class="btn primary" id="sp-save">${esc(t("common.save"))}</button>
+    </div>`);
+  el.querySelector("#sp-gen").addEventListener("click", () => { el.querySelector("#sp-pass").value = randomPassword(); });
+  el.querySelector("#sp-cancel").addEventListener("click", close);
+  el.querySelector("#sp-save").addEventListener("click", async (e) => {
+    const password = el.querySelector("#sp-pass").value.trim();
+    if (password.length < 8) return toast(t("login.err_password"), true);
+    e.target.disabled = true;
+    try {
+      await callFunction("manage-user", { action: "set_password", userId: user.id, data: { password } });
+      const text = t("user.pw_share", { url: location.origin, email: user.email, password });
+      const wa = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      el.querySelector("#sp-pass").readOnly = true;
+      el.querySelector("#sp-gen").remove();
+      el.querySelector("#sp-done").innerHTML = `<div class="banner ok">${esc(t("user.pw_saved"))}</div>`;
+      el.querySelector(".modal-foot").innerHTML = `
+        <button type="button" class="btn primary" id="sp-copy">${esc(t("user.copy_access"))}</button>
+        <a class="btn success" href="${esc(wa)}" target="_blank" rel="noopener">${esc(t("user.whatsapp"))}</a>
+        <button type="button" class="btn ghost" id="sp-close">${esc(t("common.close"))}</button>`;
+      el.querySelector("#sp-close").addEventListener("click", close);
+      el.querySelector("#sp-copy").addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(text); toast(t("user.copied")); } catch { toast(text); }
+      });
+    } catch (err) {
+      toast(errMsg(err), true);
+      e.target.disabled = false;
+    }
   });
 }
 

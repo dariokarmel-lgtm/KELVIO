@@ -55,8 +55,9 @@ function renderUsers() {
     if (u.role === "admin") {
       // A otros admins solo se les puede reenviar el acceso; el resto, por SQL.
       actions = u.id === ME.id
-        ? `<span class="sub">${esc(t("adm.sql_managed"))}</span>`
-        : `<button class="btn sm ghost" data-resend="${u.id}">${esc(t("user.resend"))}</button>`;
+        ? `<a class="btn sm ghost" href="settings.html">${esc(t("nav.settings"))}</a>`
+        : `<button class="btn sm ghost" data-password="${u.id}">${esc(t("user.set_password"))}</button>
+           <button class="btn sm ghost" data-resend="${u.id}">${esc(t("user.resend"))}</button>`;
     } else {
       const st = accountState(u);
       if (st === "pending") actions += `<button class="btn sm success" data-activate="${u.id}">${esc(t("user.activate"))}</button> `;
@@ -64,7 +65,10 @@ function renderUsers() {
       actions += st === "left"
         ? `<button class="btn sm ghost" data-activate="${u.id}">${esc(t("user.reactivate"))}</button>`
         : `<button class="btn sm ghost" data-deactivate="${u.id}">${esc(t("user.deactivate"))}</button>`;
-      if (st !== "left") actions += ` <button class="btn sm ghost" data-resend="${u.id}">${esc(t("user.resend"))}</button>`;
+      if (st !== "left") {
+        actions += ` <button class="btn sm ghost" data-password="${u.id}">${esc(t("user.set_password"))}</button>`;
+        actions += ` <button class="btn sm ghost" data-resend="${u.id}">${esc(t("user.resend"))}</button>`;
+      }
     }
     return `<tr>
       <td><strong>${esc(u.full_name || t("common.no_name"))}</strong>${u.id === ME.id ? ` <span class="sub">${esc(t("common.you"))}</span>` : ""}
@@ -192,6 +196,7 @@ document.addEventListener("click", (e) => {
   if (b.dataset.deactivate) openDeactivateForm(userById(b.dataset.deactivate), refresh);
   if (b.dataset.activate) reactivateUser(userById(b.dataset.activate), refresh);
   if (b.dataset.resend) resendAccess(userById(b.dataset.resend));
+  if (b.dataset.password) openSetPassword(userById(b.dataset.password));
   if (b.dataset.saveCountry) saveCountry(b.dataset.saveCountry);
   if (b.dataset.deleteCountry) deleteCountry(b.dataset.deleteCountry);
 });

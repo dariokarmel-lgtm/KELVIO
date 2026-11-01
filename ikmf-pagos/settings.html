@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title data-i18n="title.settings">Configuración — IKMF Pagos</title>
+<link rel="stylesheet" href="css/style.css?v=20261101b" />
+</head>
+<body data-page="settings">
+<main class="container" style="max-width:640px">
+  <div class="page-head">
+    <div>
+      <h1 data-i18n="set.title">Configuración</h1>
+      <p data-i18n="set.subtitle"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2 data-i18n="set.account">Tu cuenta</h2></div>
+    <dl class="kv" id="account-info"></dl>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2 data-i18n="set.password_title">Cambiar contraseña</h2></div>
+    <form id="pw-form" novalidate>
+      <div class="field">
+        <label for="pw-current" data-i18n="set.current">Contraseña actual</label>
+        <input class="input" id="pw-current" type="password" dir="ltr" autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label for="pw-new" data-i18n="set.new">Nueva contraseña</label>
+        <input class="input" id="pw-new" type="password" dir="ltr" autocomplete="new-password" minlength="8" />
+      </div>
+      <div class="field">
+        <label for="pw-confirm" data-i18n="set.confirm">Repetí la nueva contraseña</label>
+        <input class="input" id="pw-confirm" type="password" dir="ltr" autocomplete="new-password" minlength="8" />
+      </div>
+      <label class="remember-row"><input type="checkbox" id="pw-show" /> <span data-i18n="set.show">Mostrar contraseñas</span></label>
+      <div id="pw-msg"></div>
+      <button class="btn primary" type="submit" id="pw-save" data-i18n="set.save">Guardar nueva contraseña</button>
+    </form>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="js/config.js?v=20261101b"></script>
+<script src="js/i18n.js?v=20261101b"></script>
+<script src="js/common.js?v=20261101b"></script>
+<script src="js/settings.js?v=20261101b"></script>
+</body>
+</html>

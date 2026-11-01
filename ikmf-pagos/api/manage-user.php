@@ -11,6 +11,8 @@
  *   deactivate  → baja: deja de cobrarse después de data.end_month y no
  *                 puede volver a ingresar. El historial de pagos se conserva.
  *   reactivate  → deshace la baja (o activa a quien se registró solo).
+ *   set_password → (solo admin) define la contraseña de otro usuario y
+ *                 confirma su email, para que pueda entrar enseguida.
  *   resend      → reenvía el acceso: si nunca aceptó la invitación se la
  *                 reenvía; si ya tenía cuenta, le manda un link para elegir
  *                 una nueva contraseña.
@@ -164,7 +166,7 @@ function assert_can_manage($caller, $target, $action = '') {
     if (!$target) throw new HttpError(404, 'Usuario no encontrado.', 'not_found');
     if ($target['id'] === $caller['me']['id']) throw new HttpError(403, 'No podés modificar tu propia cuenta desde acá.', 'self');
     // A otro admin solo se le puede reenviar el acceso (y solo lo hace un admin).
-    if ($target['role'] === 'admin' && !($caller['isAdmin'] && $action === 'resend')) {
+    if ($target['role'] === 'admin' && !($caller['isAdmin'] && in_array($action, ['resend', 'set_password'], true))) {
         throw new HttpError(403, 'Las cuentas de administrador se gestionan desde la base de datos.', 'admin_account');
     }
     if ($caller['isAdmin']) return;
@@ -274,6 +276,17 @@ function deactivate_user($cfg, $target, $data) {
 // Sirve tanto para reactivar una baja como para activar a alguien que se
 // registró solo. Al volver de una baja se cobra desde el mes actual, para
 // que los meses en que estuvo de baja no figuren como deuda.
+function set_password($cfg, $caller, $target, $data) {
+    if (!$caller['isAdmin']) throw new HttpError(403, 'Solo un administrador puede definir contraseñas.', 'only_admin_password');
+    if (!empty($target['end_month'])) {
+        throw new HttpError(400, 'La cuenta está dada de baja. Reactivala antes de reenviar el acceso.', 'user_left');
+    }
+    $password = (string)($data['password'] ?? '');
+    if (mb_strlen($password) < 8) throw new HttpError(400, 'La contraseña inicial tiene que tener al menos 8 caracteres.', 'password_short');
+    admin_update_user($cfg, $target['id'], ['password' => $password, 'email_confirm' => true]);
+    return ['ok' => true, 'email' => $target['email']];
+}
+
 function reactivate_user($cfg, $target) {
     admin_update_user($cfg, $target['id'], ['ban_duration' => 'none']);
     $row = ['active' => true, 'end_month' => null];
@@ -353,6 +366,7 @@ try {
         case 'deactivate': respond(200, deactivate_user($cfg, $target, $data));
         case 'reactivate': respond(200, reactivate_user($cfg, $target));
         case 'resend':     respond(200, resend_access($cfg, $caller, $target));
+        case 'set_password': respond(200, set_password($cfg, $caller, $target, $data));
         default:           respond(400, ['error' => 'Acción desconocida.', 'code' => 'unknown_action']);
     }
 } catch (HttpError $e) {
