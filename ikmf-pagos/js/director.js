@@ -164,12 +164,14 @@ function renderMonth() {
     .filter((p) => billable(p, period) || paymentOf(p.id, period))
     .map((p) => ({ p, pay: paymentOf(p.id, period) }));
 
-  const counts = { approved: 0, pending: 0, rejected: 0, missing: 0 };
+  registerPayments(state.payments);
+  const counts = { approved: 0, pending: 0, rejected: 0, missing: 0, covered: 0 };
   const collected = [], expected = [];
   rows.forEach(({ p, pay }) => {
     if (billable(p, period)) expected.push({ amount: feeFor(p, countryOf(p)), currency: currencyOf(p) });
-    if (!pay) counts.missing++;
-    else counts[pay.status]++;
+    if (!monthSettled(p.id, period, pay)) counts.missing++;
+    else if (pay && pay.status !== "rejected") counts[pay.status]++;
+    else counts.covered++;
     if (pay && pay.status === "approved") collected.push(pay);
   });
   const money = (items) => `<span style="font-size:${allCountries() ? ".7em" : "1em"}">${sumByCurrency(items)}</span>`;
@@ -180,16 +182,16 @@ function renderMonth() {
     stat("", "stat.instructors", rows.length) +
     stat("green", "stat.approved", counts.approved) +
     stat("yellow", "stat.to_validate", counts.pending) +
-    stat("red", isCurrentOrFuture ? "stat.unpaid_yet" : "stat.owe", counts.missing + counts.rejected) +
+    stat("red", isCurrentOrFuture ? "stat.unpaid_yet" : "stat.owe", counts.missing) +
     stat("green", "stat.collected", money(collected)) +
     stat("", "stat.expected", money(expected));
 
-  const order = { pending: 0, rejected: 1, due: 2, upcoming: 2, approved: 3 };
-  rows.sort((a, b) => order[monthStatus(a.pay, period)] - order[monthStatus(b.pay, period)]
+  const order = { pending: 0, rejected: 1, due: 2, upcoming: 2, covered: 3, approved: 3 };
+  rows.sort((a, b) => order[monthStatus(a.pay, period, a.p.id)] - order[monthStatus(b.pay, period, b.p.id)]
     || (a.p.full_name || "").localeCompare(b.p.full_name || ""));
 
   $("month-body").innerHTML = rows.map(({ p, pay }) => {
-    const status = monthStatus(pay, period);
+    const status = monthStatus(pay, period, p.id);
     const due = dueMonths(p).length;
     let actions;
     if (pay) {
@@ -391,7 +393,7 @@ function exportMonth() {
     .forEach((p) => {
       const pay = paymentOf(p.id, period);
       rows.push([
-        p.full_name, p.email, (countryOf(p) || {}).name || "", period.slice(0, 7), statusLabel(monthStatus(pay, period)),
+        p.full_name, p.email, (countryOf(p) || {}).name || "", period.slice(0, 7), statusLabel(monthStatus(pay, period, p.id)),
         feeFor(p, countryOf(p)), pay ? pay.amount : "", currencyOf(p),
         pay ? pay.paid_on : "", pay ? methodLabel(pay.method) : "", pay ? pay.reference : "", pay ? pay.review_comment : "",
       ]);

@@ -64,6 +64,7 @@ async function load() {
   state.people = isAdmin() ? nonAdmin : nonAdmin.filter((p) => p.id !== ME.id);
   state.payments = isAdmin() ? payments : payments.filter((p) => p.instructor_id !== ME.id);
   paymentIndex = new Map(payments.map((p) => [`${p.instructor_id}|${p.period}`, p]));
+  registerPayments(payments);
 }
 
 async function refresh() {
@@ -88,10 +89,7 @@ function render() {
   const pending = payments.filter((p) => p.status === "pending");
   const approvedMonth = payments.filter((p) => p.status === "approved" && p.period === period);
   const billablePeople = people.filter((p) => billable(p, period));
-  const unpaid = billablePeople.filter((p) => {
-    const pay = paymentOf(p.id, period);
-    return !pay || pay.status === "rejected";
-  });
+  const unpaid = billablePeople.filter((p) => !monthSettled(p.id, period, paymentOf(p.id, period)));
   const alerts = people
     .map((p) => ({ p, due: dueMonthsFor(p, paymentOf) }))
     .filter((x) => x.due.length)
@@ -235,8 +233,8 @@ function renderCountries() {
     billablePeople.forEach((p) => {
       expected += feeFor(p, c);
       const pay = paymentOf(p.id, period);
-      if (!pay || pay.status === "rejected") unpaid++;
-      else if (pay.status === "approved") { approved++; collected += Number(pay.amount); }
+      if (!monthSettled(p.id, period, pay)) unpaid++;
+      else if (pay && pay.status === "approved") { approved++; collected += Number(pay.amount); }
     });
     return { c, total: billablePeople.length, approved, pending, unpaid, collected, expected };
   }).filter((r) => r.total || r.pending || (state.filter && !state.filter.startsWith("r:")));
@@ -289,7 +287,7 @@ function openUnpaidModal() {
     const pay = paymentOf(p.id, state.period);
     return `<tr>
       <td><strong>${esc(p.full_name || p.email)}</strong><div class="sub">${esc(c ? c.name : "—")}</div></td>
-      <td>${chip(monthStatus(pay, state.period))}</td>
+      <td>${chip(monthStatus(pay, state.period, p.id))}</td>
       <td class="num">${fmtMoney(feeFor(p, c), c ? c.currency : "USD")}</td>
       <td><span dir="ltr">${esc(p.email)}</span>${p.phone ? `<div class="sub" dir="ltr">${esc(p.phone)}</div>` : ""}</td>
       <td class="actions"><a class="btn sm ghost" href="director.html?country=${encodeURIComponent(p.country_id || "")}">${esc(t("dash.view_country"))}</a></td>

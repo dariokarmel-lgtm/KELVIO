@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.02";
+const APP_VERSION = "2026.11.02b";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -284,13 +284,76 @@ function feeFor(profile, country) {
   return country ? Number(country.default_fee) : 0;
 }
 
+/* ---------- Vigencia de 30 días ---------- */
+
+// Cada pago aprobado cubre un mes desde su fecha de pago (paid_on): un pago
+// del 30/10 está vigente hasta el 30/11 (mismo día del mes siguiente; si ese
+// mes no tiene ese día, el último día del mes: 31/01 → 28/02).
+
+function addDays(iso, n) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Último día de vigencia de un pago hecho en la fecha `iso`.
+function coverageUntil(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const last = new Date(y, m + 1, 0).getDate(); // último día del mes siguiente
+  const dt = new Date(y, m, Math.min(d, last));
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+function validUntil(pay) {
+  return coverageUntil(pay.paid_on);
+}
+
+// Fechas de pago aprobadas por persona (cada página las registra al cargar).
+const APPROVED_INDEX = new Map();
+function registerPayments(list) {
+  APPROVED_INDEX.clear();
+  (list || []).forEach((p) => {
+    if (p.status !== "approved" || !p.paid_on) return;
+    if (!APPROVED_INDEX.has(p.instructor_id)) APPROVED_INDEX.set(p.instructor_id, []);
+    APPROVED_INDEX.get(p.instructor_id).push(p.paid_on);
+  });
+}
+
+// ¿La persona tiene un pago aprobado vigente en la fecha `iso`?
+function coveredOn(personId, iso) {
+  return (APPROVED_INDEX.get(personId) || []).some((d) => d <= iso && iso <= coverageUntil(d));
+}
+
+// Hasta cuándo está cubierta la persona (null si nunca pagó).
+function coverageEnd(personId) {
+  const list = APPROVED_INDEX.get(personId) || [];
+  return list.length ? list.map(coverageUntil).sort().pop() : null;
+}
+
+// Día con el que se evalúa un mes: hoy para el mes en curso, el último día
+// para los meses pasados y el primero para los futuros.
+function referenceDate(period) {
+  const now = currentPeriod();
+  if (period === now) return todayISO();
+  if (period < now) return addDays(addMonths(period, 1), -1);
+  return period;
+}
+
+// ¿Ese mes está saldado? Tiene su pago (aprobado o en revisión) o la
+// persona está cubierta por un pago vigente en la fecha de referencia.
+function monthSettled(personId, period, payment) {
+  if (payment && payment.status !== "rejected") return true;
+  return coveredOn(personId, referenceDate(period));
+}
+
 /*
  * Estado de un mes para un instructor. `payment` puede ser undefined.
- * Un mes sin pago aprobado ni en revisión cuenta como deuda, salvo el mes
- * en curso, que se muestra como "A pagar".
+ * Sin pago propio pero cubierto por la vigencia de 30 días → "Cubierto".
+ * Si no, cuenta como deuda, salvo el mes en curso ("A pagar").
  */
-function monthStatus(payment, period) {
+function monthStatus(payment, period, personId) {
   if (payment) return payment.status;
+  if (personId && coveredOn(personId, referenceDate(period))) return "covered";
   return period >= currentPeriod() ? "upcoming" : "due";
 }
 
@@ -379,10 +442,7 @@ function dueMonthsFor(p, paymentOf) {
   if (p.end_month && p.end_month < last) last = p.end_month;
   const start = startMonthFor(p);
   if (start > last) return [];
-  return periodsBetween(start, last).filter((period) => {
-    const pay = paymentOf(p.id, period);
-    return !pay || pay.status === "rejected";
-  });
+  return periodsBetween(start, last).filter((period) => !monthSettled(p.id, period, paymentOf(p.id, period)));
 }
 
 /* ---------- Comprobantes ---------- */
@@ -761,6 +821,7 @@ function openPaymentReview({ pay, person, country, onDone }) {
           ${kv("rv.amount", fmtMoney(pay.amount, pay.currency))}
           ${kv("rv.fee", fmtMoney(fee, cur))}
           ${kv("rv.paid_on", fmtDate(pay.paid_on))}
+          ${pay.paid_on ? kv("rv.valid_until", fmtDate(validUntil(pay))) : ""}
           ${kv("rv.method", esc(methodLabel(pay.method)))}
           ${kv("rv.reference", esc(pay.reference || "—"))}
           ${kv("rv.note", esc(pay.note || "—"))}

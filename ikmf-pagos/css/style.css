@@ -162,6 +162,7 @@ tr.row-link:hover td, tr.row-link:active td { background: var(--color-blue-bg); 
 }
 .chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .chip.approved { color: var(--color-green); background: var(--color-green-bg); }
+.chip.covered  { color: var(--color-green); background: var(--color-green-bg); opacity: .85; }
 .chip.pending  { color: var(--color-yellow); background: var(--color-yellow-bg); }
 .chip.rejected { color: var(--color-red); background: var(--color-red-bg); }
 .chip.due      { color: var(--color-red); background: var(--color-red-bg); }

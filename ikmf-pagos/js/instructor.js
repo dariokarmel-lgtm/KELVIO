@@ -28,6 +28,7 @@ async function loadPayments() {
     .order("period", { ascending: false });
   if (error) throw error;
   payments = data;
+  registerPayments(payments);
 }
 
 function render() {
@@ -35,6 +36,14 @@ function render() {
   $("fee-line").textContent = ME.country
     ? t("inst.fee_line", { country: ME.country.name, fee: fmtMoney(fee, myCurrency()), month: fmtPeriod(startMonthFor(ME)) })
     : t("inst.no_country");
+
+  // Vigencia: hasta cuándo está cubierto por su último pago aprobado.
+  const until = coverageEnd(ME.id);
+  if (until) {
+    const ok = until >= todayISO();
+    $("fee-line").insertAdjacentHTML("beforeend",
+      ` · <span style="color:var(--color-${ok ? "green" : "red"});font-weight:700">${esc(t(ok ? "inst.valid_until" : "inst.expired_on", { date: fmtDate(until) }))}</span>`);
+  }
 
   const banner = $("banner");
   let warn = "";
@@ -57,18 +66,18 @@ function render() {
   let approved = 0, pending = 0, due = 0, paidTotal = 0;
   const rows = periods.map((period) => {
     const p = paymentFor(period);
-    const status = monthStatus(p, period);
+    const status = monthStatus(p, period, ME.id);
     if (status === "approved") { approved++; paidTotal += Number(p.amount); }
     if (status === "pending") pending++;
-    if (status === "due" || status === "rejected") due++;
+    if (!monthSettled(ME.id, period, p) && period < currentPeriod()) due++;
 
     let detail = "";
     if (p) {
       detail = [p.method ? methodLabel(p.method) : "", p.reference].filter(Boolean).map(esc).join(" · ");
       if (p.status === "rejected" && p.review_comment) {
         detail += `<div class="sub" style="color:var(--color-red)">${esc(t("inst.reason", { text: p.review_comment }))}</div>`;
-      } else if (p.status === "approved" && p.reviewed_at) {
-        detail += `<div class="sub">${esc(t("inst.validated_on", { date: fmtDate(p.reviewed_at) }))}</div>`;
+      } else if (p.status === "approved") {
+        detail += `<div class="sub">${esc(t("inst.valid_until", { date: fmtDate(validUntil(p)) }))}</div>`;
       }
     }
 
@@ -77,8 +86,9 @@ function render() {
       actions += `<button class="btn sm ghost" data-receipt="${esc(p.receipt_path)}">${esc(t("inst.view_receipt"))}</button> `;
     }
     if (ME.active) {
-      if (!p) actions += `<button class="btn sm primary" data-pay="${period}">${esc(t("inst.pay"))}</button>`;
-      else if (p.status === "rejected") actions += `<button class="btn sm primary" data-edit="${p.id}">${esc(t("inst.resend"))}</button>`;
+      if (!p) {
+        if (status !== "covered") actions += `<button class="btn sm primary" data-pay="${period}">${esc(t("inst.pay"))}</button>`;
+      } else if (p.status === "rejected") actions += `<button class="btn sm primary" data-edit="${p.id}">${esc(t("inst.resend"))}</button>`;
       else if (p.status === "pending") actions += `<button class="btn sm ghost" data-edit="${p.id}">${esc(t("common.edit"))}</button>`;
     }
 

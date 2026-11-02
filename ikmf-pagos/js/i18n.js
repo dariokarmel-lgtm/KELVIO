@@ -428,6 +428,10 @@ const DICT = {
     "err.only_admin_password": "Solo un administrador puede definir contraseñas.",
     "user.copy_access": "Copiar datos de acceso",
     "dash.month": "Mes",
+    "status.covered": "Cubierto",
+    "inst.valid_until": "Vigente hasta {date}",
+    "inst.expired_on": "Venció el {date}",
+    "rv.valid_until": "Vigente hasta",
   },
 
   en: {
@@ -840,6 +844,10 @@ const DICT = {
     "err.only_admin_password": "Only an administrator can set passwords.",
     "user.copy_access": "Copy sign-in details",
     "dash.month": "Month",
+    "status.covered": "Covered",
+    "inst.valid_until": "Valid until {date}",
+    "inst.expired_on": "Expired on {date}",
+    "rv.valid_until": "Valid until",
   },
 
   he: {
@@ -1252,6 +1260,10 @@ const DICT = {
     "err.only_admin_password": "רק מנהל מערכת יכול להגדיר סיסמאות.",
     "user.copy_access": "העתקת פרטי הכניסה",
     "dash.month": "חודש",
+    "status.covered": "מכוסה",
+    "inst.valid_until": "בתוקף עד {date}",
+    "inst.expired_on": "פג תוקף ב־{date}",
+    "rv.valid_until": "בתוקף עד",
   },
 
   fr: {
@@ -1664,6 +1676,10 @@ const DICT = {
     "err.only_admin_password": "Seul un administrateur peut définir des mots de passe.",
     "user.copy_access": "Copier les identifiants",
     "dash.month": "Mois",
+    "status.covered": "Couvert",
+    "inst.valid_until": "Valable jusqu'au {date}",
+    "inst.expired_on": "Expiré le {date}",
+    "rv.valid_until": "Valable jusqu'au",
   },
 
   de: {
@@ -2076,6 +2092,10 @@ const DICT = {
     "err.only_admin_password": "Nur ein Administrator kann Passwörter festlegen.",
     "user.copy_access": "Zugangsdaten kopieren",
     "dash.month": "Monat",
+    "status.covered": "Abgedeckt",
+    "inst.valid_until": "Gültig bis {date}",
+    "inst.expired_on": "Abgelaufen am {date}",
+    "rv.valid_until": "Gültig bis",
   },
 
   it: {
@@ -2488,6 +2508,10 @@ const DICT = {
     "err.only_admin_password": "Solo un amministratore può impostare le password.",
     "user.copy_access": "Copia dati di accesso",
     "dash.month": "Mese",
+    "status.covered": "Coperto",
+    "inst.valid_until": "Valido fino al {date}",
+    "inst.expired_on": "Scaduto il {date}",
+    "rv.valid_until": "Valido fino al",
   },
 };
 
