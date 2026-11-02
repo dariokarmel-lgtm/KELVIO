@@ -5,4 +5,4 @@
  * service_role key.
  */
 const SUPABASE_URL = "https://tajvnushhlauubkzvamx.supabase.co";
-const SUPABASE_ANON_KEY = "TU-ANON-KEY";
+const SUPABASE_ANON_KEY = "sb_publishable_TzuhuN7zHZsml50kW8tttg_lmHANjlJ";
