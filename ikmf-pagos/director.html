@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title data-i18n="title.director">Panel de país — IKMF Pagos</title>
-<link rel="stylesheet" href="css/style.css?v=20261102c" />
+<link rel="stylesheet" href="css/style.css?v=20261102d" />
 </head>
 <body data-page="director">
 <main class="container">
@@ -34,7 +34,7 @@
         <button class="btn ghost sm flip" id="next-month" type="button">›</button>
       </div>
       <span class="spacer"></span>
-      <button class="btn ghost" id="export-btn" type="button" data-i18n="dir.export">Exportar CSV</button>
+      <div id="exp-month"></div>
     </div>
     <div class="stats" id="month-stats"></div>
     <div class="card">
@@ -61,8 +61,11 @@
   <section id="tab-pending" class="hidden">
     <div class="card">
       <div class="card-head">
-        <h2 id="pending-title"></h2>
-        <span class="sub" data-i18n="dir.pending_sub"></span>
+        <div>
+          <h2 id="pending-title"></h2>
+          <span class="sub" data-i18n="dir.pending_sub"></span>
+        </div>
+        <div id="exp-pending"></div>
       </div>
       <div id="pending-note"></div>
       <div class="table-wrap">
@@ -91,6 +94,7 @@
       <button class="btn primary" id="new-user-btn" type="button" data-i18n="dir.new_instructor">+ Nuevo instructor</button>
       <span class="spacer"></span>
       <label class="sub row" style="gap:6px"><input type="checkbox" id="show-left" /> <span data-i18n="dir.show_left">Mostrar dados de baja</span></label>
+      <div id="exp-instructors"></div>
     </div>
     <p class="sub" id="fee-note" style="margin:-4px 0 16px"></p>
     <div class="card">
@@ -115,9 +119,9 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="js/config.js?v=20261102c"></script>
-<script src="js/i18n.js?v=20261102c"></script>
-<script src="js/common.js?v=20261102c"></script>
-<script src="js/director.js?v=20261102c"></script>
+<script src="js/config.js?v=20261102d"></script>
+<script src="js/i18n.js?v=20261102d"></script>
+<script src="js/common.js?v=20261102d"></script>
+<script src="js/director.js?v=20261102d"></script>
 </body>
 </html>

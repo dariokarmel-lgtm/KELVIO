@@ -432,6 +432,14 @@ const DICT = {
     "inst.valid_until": "Vigente hasta {date}",
     "inst.expired_on": "Venció el {date}",
     "rv.valid_until": "Vigente hasta",
+    "exp.label": "Exportar:",
+    "exp.generating": "Generando el archivo…",
+    "exp.generated": "Generado el {date}",
+    "exp.month_title": "Pagos del mes",
+    "exp.pending_title": "Pagos por validar",
+    "exp.instructors_title": "Instructores",
+    "exp.paid_title": "Pagos aprobados",
+    "exp.error": "No se pudo generar el archivo: {msg}",
   },
 
   en: {
@@ -848,6 +856,14 @@ const DICT = {
     "inst.valid_until": "Valid until {date}",
     "inst.expired_on": "Expired on {date}",
     "rv.valid_until": "Valid until",
+    "exp.label": "Export:",
+    "exp.generating": "Generating the file…",
+    "exp.generated": "Generated on {date}",
+    "exp.month_title": "Monthly payments",
+    "exp.pending_title": "Payments to validate",
+    "exp.instructors_title": "Instructors",
+    "exp.paid_title": "Approved payments",
+    "exp.error": "The file could not be generated: {msg}",
   },
 
   he: {
@@ -1264,6 +1280,14 @@ const DICT = {
     "inst.valid_until": "בתוקף עד {date}",
     "inst.expired_on": "פג תוקף ב־{date}",
     "rv.valid_until": "בתוקף עד",
+    "exp.label": "ייצוא:",
+    "exp.generating": "יוצר את הקובץ…",
+    "exp.generated": "נוצר ב־{date}",
+    "exp.month_title": "תשלומי החודש",
+    "exp.pending_title": "תשלומים לאישור",
+    "exp.instructors_title": "מדריכים",
+    "exp.paid_title": "תשלומים מאושרים",
+    "exp.error": "לא ניתן היה ליצור את הקובץ: {msg}",
   },
 
   fr: {
@@ -1680,6 +1704,14 @@ const DICT = {
     "inst.valid_until": "Valable jusqu'au {date}",
     "inst.expired_on": "Expiré le {date}",
     "rv.valid_until": "Valable jusqu'au",
+    "exp.label": "Exporter :",
+    "exp.generating": "Génération du fichier…",
+    "exp.generated": "Généré le {date}",
+    "exp.month_title": "Paiements du mois",
+    "exp.pending_title": "Paiements à valider",
+    "exp.instructors_title": "Instructeurs",
+    "exp.paid_title": "Paiements approuvés",
+    "exp.error": "Impossible de générer le fichier : {msg}",
   },
 
   de: {
@@ -2096,6 +2128,14 @@ const DICT = {
     "inst.valid_until": "Gültig bis {date}",
     "inst.expired_on": "Abgelaufen am {date}",
     "rv.valid_until": "Gültig bis",
+    "exp.label": "Exportieren:",
+    "exp.generating": "Datei wird erstellt…",
+    "exp.generated": "Erstellt am {date}",
+    "exp.month_title": "Zahlungen des Monats",
+    "exp.pending_title": "Zu prüfende Zahlungen",
+    "exp.instructors_title": "Instruktoren",
+    "exp.paid_title": "Genehmigte Zahlungen",
+    "exp.error": "Die Datei konnte nicht erstellt werden: {msg}",
   },
 
   it: {
@@ -2512,10 +2552,23 @@ const DICT = {
     "inst.valid_until": "Valido fino al {date}",
     "inst.expired_on": "Scaduto il {date}",
     "rv.valid_until": "Valido fino al",
+    "exp.label": "Esporta:",
+    "exp.generating": "Generazione del file…",
+    "exp.generated": "Generato il {date}",
+    "exp.month_title": "Pagamenti del mese",
+    "exp.pending_title": "Pagamenti da convalidare",
+    "exp.instructors_title": "Istruttori",
+    "exp.paid_title": "Pagamenti approvati",
+    "exp.error": "Impossibile generare il file: {msg}",
   },
 };
 
+// Idioma forzado temporalmente (p. ej. PDF en inglés si la interfaz está en
+// hebreo, porque las fuentes estándar del PDF no tienen caracteres hebreos).
+let LANG_OVERRIDE = null;
+
 function getLang() {
+  if (LANG_OVERRIDE) return LANG_OVERRIDE;
   let saved = null;
   try { saved = localStorage.getItem(LANG_KEY); } catch { /* sin storage */ }
   if (saved && LANGS[saved]) return saved;

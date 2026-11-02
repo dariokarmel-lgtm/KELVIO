@@ -253,20 +253,20 @@ function renderCountries() {
     </tr>`).join("") || `<tr><td colspan="8" class="empty">${esc(t("dir.no_instructors"))}</td></tr>`;
 }
 
-function exportPaid() {
+function paidRows() {
   const period = state.period;
   const ids = new Set(state.people.filter(inFilter).map((p) => p.id));
   const rows = [["col.instructor", "common.email", "common.country", "col.month", "col.amount_paid",
-    "col.currency", "col.payment_date", "col.method", "col.reference", "col.reviewed_on"].map((k) => t(k))];
+    "col.currency", "col.payment_date", "col.method", "col.reference", "col.reviewed_on", "rv.valid_until"].map((k) => t(k))];
   state.payments
     .filter((p) => ids.has(p.instructor_id) && p.status === "approved" && p.period === period)
     .forEach((pay) => {
       const p = person(pay.instructor_id) || {};
       const c = countryById(p.country_id);
-      rows.push([p.full_name, p.email, c ? c.name : "", period.slice(0, 7), pay.amount, pay.currency,
-        pay.paid_on, methodLabel(pay.method), pay.reference, pay.reviewed_at ? pay.reviewed_at.slice(0, 10) : ""]);
+      rows.push([p.full_name, p.email, c ? c.name : "", fmtPeriod(period), Number(pay.amount), pay.currency,
+        pay.paid_on, methodLabel(pay.method), pay.reference, pay.reviewed_at ? fmtDate(pay.reviewed_at) : "", fmtDate(validUntil(pay))]);
     });
-  downloadCSV(`ikmf-pagos-${period.slice(0, 7)}.csv`, rows);
+  return { title: `${t("exp.paid_title")} — ${fmtPeriod(period)}`, rows };
 }
 
 /* ---------- Init ---------- */
@@ -354,6 +354,11 @@ function openPendingModal() {
 }
 
 document.addEventListener("click", (e) => {
+  const exp = e.target.closest("[data-export]");
+  if (exp) {
+    const format = exp.dataset.export.split(":")[1];
+    return runExport(format, `ikmf-approved-${state.period.slice(0, 7)}`, paidRows);
+  }
   const target = e.target.closest("[data-review]");
   if (target) {
     // Si viene de la ventana de pendientes, se cierra y se abre el comprobante.
@@ -401,7 +406,7 @@ document.addEventListener("keydown", (e) => {
   });
   $("prev-month").addEventListener("click", () => { state.period = addMonths(state.period, -1); render(); });
   $("next-month").addEventListener("click", () => { state.period = addMonths(state.period, 1); render(); });
-  $("export-btn").addEventListener("click", exportPaid);
+  $("exp-paid").innerHTML = exportButtons("paid");
 
   await refresh();
 

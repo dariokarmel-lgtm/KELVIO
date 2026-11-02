@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.02c";
+const APP_VERSION = "2026.11.02d";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -958,6 +958,94 @@ function openModal(title, html, { wide } = {}) {
   document.addEventListener("keydown", onKey);
   document.body.appendChild(backdrop);
   return { el: backdrop.querySelector(".modal"), close };
+}
+
+/* ---------- Exportar (CSV / Excel / PDF) ---------- */
+
+// Las librerías de Excel y PDF están en vendor/ y se cargan solo al usarlas.
+const loadedScripts = {};
+function loadScriptOnce(src) {
+  if (!loadedScripts[src]) {
+    loadedScripts[src] = new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = src;
+      el.onload = resolve;
+      el.onerror = () => reject(new Error(src));
+      document.head.appendChild(el);
+    });
+  }
+  return loadedScripts[src];
+}
+
+// Botones "Exportar: Excel · PDF · CSV" para una sección (`scope`).
+function exportButtons(scope) {
+  return `<div class="export-group"><span class="sub">${esc(t("exp.label"))}</span>
+    <button type="button" class="btn ghost sm" data-export="${scope}:xlsx">Excel</button>
+    <button type="button" class="btn ghost sm" data-export="${scope}:pdf">PDF</button>
+    <button type="button" class="btn ghost sm" data-export="${scope}:csv">CSV</button></div>`;
+}
+
+/*
+ * Arma las filas con build() y las descarga en el formato pedido. Para PDF
+ * con la interfaz en hebreo, las filas se arman en inglés (las fuentes
+ * estándar del PDF no tienen caracteres hebreos).
+ */
+async function runExport(format, filename, build) {
+  const pdfInEnglish = format === "pdf" && getLang() === "he";
+  let data;
+  if (pdfInEnglish) LANG_OVERRIDE = "en";
+  try {
+    data = build(); // { title, rows }
+  } finally {
+    LANG_OVERRIDE = null;
+  }
+  try {
+    if (format === "csv") return downloadCSV(`${filename}.csv`, data.rows);
+    toast(t("exp.generating"));
+    if (format === "xlsx") {
+      await loadScriptOnce("vendor/xlsx-0.18.5.full.min.js");
+      const ws = XLSX.utils.aoa_to_sheet(data.rows);
+      ws["!cols"] = data.rows[0].map((_, i) => ({
+        wch: Math.min(45, Math.max(...data.rows.map((r) => String(r[i] ?? "").length)) + 2),
+      }));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, data.title.replace(/[\\/?*[\]:]/g, " ").slice(0, 31));
+      XLSX.writeFile(wb, `${filename}.xlsx`);
+    } else if (format === "pdf") {
+      await loadScriptOnce("vendor/jspdf-2.5.2.umd.min.js");
+      await loadScriptOnce("vendor/jspdf-autotable-3.8.4.min.js");
+      const doc = new window.jspdf.jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      doc.setFontSize(14);
+      doc.text(data.title, 40, 40);
+      doc.setFontSize(9);
+      doc.setTextColor(110);
+      if (pdfInEnglish) LANG_OVERRIDE = "en";
+      try {
+        doc.text(`IKMF · ${t("exp.generated", { date: fmtDate(new Date().toISOString()) })}`, 40, 56);
+      } finally {
+        LANG_OVERRIDE = null;
+      }
+      doc.autoTable({
+        head: [data.rows[0].map(String)],
+        body: data.rows.slice(1).map((r) => r.map((v) => (v === null || v === undefined ? "" : String(v)))),
+        startY: 68,
+        styles: { fontSize: 8, cellPadding: 4 },
+        headStyles: { fillColor: [200, 16, 46] },
+        alternateRowStyles: { fillColor: [245, 246, 248] },
+      });
+      doc.save(`${filename}.pdf`);
+    }
+  } catch (e) {
+    toast(t("exp.error", { msg: errMsg(e) }), true);
+  }
+}
+
+// Estado de la cuenta como texto (para exportar).
+function accountLabel(profile) {
+  const st = accountState(profile);
+  return st === "left"
+    ? t("account.left_since", { month: fmtPeriod(addMonths(profile.end_month, 1)) })
+    : t(`account.${st}`);
 }
 
 function downloadCSV(filename, rows) {

@@ -382,7 +382,14 @@ function openManualPayment(personId, period) {
   });
 }
 
-function exportMonth() {
+// Nombre de archivo y título según el filtro (país, región o todos).
+function exportScopeName() {
+  if (state.country) return { code: state.country.code, label: state.country.name };
+  if (state.region) return { code: state.region, label: regionLabel(state.region) };
+  return { code: "all", label: t("adm.all_countries") };
+}
+
+function monthRows() {
   const period = state.period;
   const rows = [[
     "col.instructor", "common.email", "common.country", "col.month", "col.status", "col.fee", "col.amount_paid",
@@ -393,12 +400,51 @@ function exportMonth() {
     .forEach((p) => {
       const pay = paymentOf(p.id, period);
       rows.push([
-        p.full_name, p.email, (countryOf(p) || {}).name || "", period.slice(0, 7), statusLabel(monthStatus(pay, period, p.id)),
-        feeFor(p, countryOf(p)), pay ? pay.amount : "", currencyOf(p),
+        p.full_name, p.email, (countryOf(p) || {}).name || "", fmtPeriod(period), statusLabel(monthStatus(pay, period, p.id)),
+        feeFor(p, countryOf(p)), pay ? Number(pay.amount) : "", currencyOf(p),
         pay ? pay.paid_on : "", pay ? methodLabel(pay.method) : "", pay ? pay.reference : "", pay ? pay.review_comment : "",
       ]);
     });
-  downloadCSV(`ikmf-${state.country ? state.country.code : "todos"}-${period.slice(0, 7)}.csv`, rows);
+  return { title: `${t("exp.month_title")} — ${fmtPeriod(period)} — ${exportScopeName().label}`, rows };
+}
+
+function pendingRows() {
+  const rows = [[
+    "col.instructor", "common.email", "common.country", "col.month", "col.amount", "col.currency",
+    "col.paid_on", "col.method", "col.reference", "col.sent",
+  ].map((k) => t(k))];
+  [...pendingList()].sort((a, b) => a.created_at.localeCompare(b.created_at)).forEach((pay) => {
+    const p = pay.instructor || person(pay.instructor_id) || {};
+    const c = countryById(p.country_id);
+    rows.push([p.full_name || "", p.email || "", c ? c.name : "", fmtPeriod(pay.period), Number(pay.amount), pay.currency,
+      pay.paid_on, methodLabel(pay.method), pay.reference || "", fmtDate(pay.updated_at)]);
+  });
+  return { title: `${t("exp.pending_title")} — ${exportScopeName().label}`, rows };
+}
+
+function instructorRows() {
+  const showLeft = $("show-left").checked;
+  const rows = [[
+    "col.instructor", "common.email", "common.phone", "common.country", "common.role", "col.status", "col.fee",
+    "col.currency", "col.start", "col.due_months", "col.debt", "rv.valid_until",
+  ].map((k) => t(k))];
+  state.people
+    .filter((p) => showLeft || accountState(p) !== "left")
+    .sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""))
+    .forEach((p) => {
+      const due = dueMonths(p).length;
+      const fee = feeFor(p, countryOf(p));
+      const until = coverageEnd(p.id);
+      rows.push([p.full_name || "", p.email, p.phone || "", (countryOf(p) || {}).name || "", roleLabel(p.role), accountLabel(p),
+        fee, currencyOf(p), fmtPeriod(startMonthFor(p)), due, due * fee, until ? fmtDate(until) : ""]);
+    });
+  return { title: `${t("exp.instructors_title")} — ${exportScopeName().label}`, rows };
+}
+
+function exportScope(scope, format) {
+  const builders = { month: monthRows, pending: pendingRows, instructors: instructorRows };
+  const suffix = scope === "month" ? `-${state.period.slice(0, 7)}` : `-${todayISO()}`;
+  runExport(format, `ikmf-${scope}-${exportScopeName().code}${suffix}`, builders[scope]);
 }
 
 function setTab(tab) {
@@ -416,6 +462,10 @@ document.addEventListener("click", (e) => {
     const row = e.target.closest("tr[data-review]");
     if (row) openReview(row.dataset.review);
     return;
+  }
+  if (b.dataset.export) {
+    const [scope, format] = b.dataset.export.split(":");
+    return exportScope(scope, format);
   }
   if (b.dataset.review) openReview(b.dataset.review);
   if (b.dataset.manual) openManualPayment(b.dataset.manual, b.dataset.period);
@@ -476,7 +526,9 @@ document.addEventListener("click", (e) => {
   });
   $("prev-month").addEventListener("click", () => { state.period = addMonths(state.period, -1); renderMonth(); });
   $("next-month").addEventListener("click", () => { state.period = addMonths(state.period, 1); renderMonth(); });
-  $("export-btn").addEventListener("click", exportMonth);
+  $("exp-month").innerHTML = exportButtons("month");
+  $("exp-pending").innerHTML = exportButtons("pending");
+  $("exp-instructors").innerHTML = exportButtons("instructors");
   $("show-left").addEventListener("change", renderInstructors);
   $("new-user-btn").addEventListener("click", () => openPersonForm(null));
   if (isAdmin()) $("new-user-btn").textContent = t("dir.new_instr_or_dir");
