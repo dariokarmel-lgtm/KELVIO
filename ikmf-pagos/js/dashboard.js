@@ -96,7 +96,8 @@ function render() {
     .sort((a, b) => b.due.length - a.due.length || (a.p.full_name || "").localeCompare(b.p.full_name || ""));
   const toActivate = people.filter((p) => accountState(p) === "pending");
 
-  renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, toActivate });
+  const upToDate = billablePeople.filter((p) => monthApproved(p.id, period, paymentOf(p.id, period)));
+  renderKpis({ approvedMonth, upToDate, pending, unpaid, billablePeople, alerts, toActivate });
   renderUsersCard();
   renderPending(pending);
   renderAlerts(alerts);
@@ -136,7 +137,7 @@ function renderUsersCard() {
   $("kpis").prepend(card);
 }
 
-function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, toActivate }) {
+function renderKpis({ approvedMonth, upToDate, pending, unpaid, billablePeople, alerts, toActivate }) {
   currentPending = pending;
   currentUnpaid = unpaid;
   currentToActivate = toActivate;
@@ -145,7 +146,7 @@ function renderKpis({ approvedMonth, pending, unpaid, billablePeople, alerts, to
     `<div class="stat ${cls}${kpi ? " clickable" : ""}"${kpi ? ` data-kpi="${kpi}" role="button" tabindex="0"` : ""}><div class="label">${esc(t(label))}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
   const current = state.period >= currentPeriod();
   $("kpis").innerHTML =
-    stat("green", "dash.kpi_approved", approvedMonth.length, esc(t("dash.of_billable", { n: billablePeople.length })), "paid") +
+    stat("green", "dash.kpi_approved", upToDate.length, esc(t("dash.of_billable", { n: billablePeople.length })), "paid") +
     stat("green", "dash.kpi_collected", `<span style="font-size:.8em">${sumByCurrency(approvedMonth)}</span>`, "", "paid") +
     stat("yellow", "dash.kpi_pending", pending.length, pending.length ? esc(t("dash.tap_to_validate")) : "", "pending") +
     stat("red", current ? "stat.unpaid_yet" : "dash.kpi_unpaid", unpaid.length, unpaid.length ? esc(t("dash.tap_to_see")) : "", "unpaid") +
@@ -234,7 +235,8 @@ function renderCountries() {
       expected += feeFor(p, c);
       const pay = paymentOf(p.id, period);
       if (!monthSettled(p.id, period, pay)) unpaid++;
-      else if (pay && pay.status === "approved") { approved++; collected += Number(pay.amount); }
+      else if (monthApproved(p.id, period, pay)) approved++; // pago aprobado o vigencia
+      if (pay && pay.status === "approved") collected += Number(pay.amount);
     });
     return { c, total: billablePeople.length, approved, pending, unpaid, collected, expected };
   }).filter((r) => r.total || r.pending || (state.filter && !state.filter.startsWith("r:")));

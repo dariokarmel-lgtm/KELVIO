@@ -180,7 +180,7 @@ function renderMonth() {
     `<div class="stat ${cls}"><div class="label">${esc(t(label))}</div><div class="value">${value}</div></div>`;
   $("month-stats").innerHTML =
     stat("", "stat.instructors", rows.length) +
-    stat("green", "stat.approved", counts.approved) +
+    stat("green", "stat.approved", counts.approved + counts.covered) +
     stat("yellow", "stat.to_validate", counts.pending) +
     stat("red", isCurrentOrFuture ? "stat.unpaid_yet" : "stat.owe", counts.missing) +
     stat("green", "stat.collected", money(collected)) +

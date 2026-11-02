@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.02b";
+const APP_VERSION = "2026.11.02c";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -310,9 +310,17 @@ function validUntil(pay) {
 
 // Fechas de pago aprobadas por persona (cada página las registra al cargar).
 const APPROVED_INDEX = new Map();
+// Último mes con un pago cargado (aprobado o en revisión) por persona.
+const LAST_PAID_PERIOD = new Map();
+
 function registerPayments(list) {
   APPROVED_INDEX.clear();
+  LAST_PAID_PERIOD.clear();
   (list || []).forEach((p) => {
+    if (p.status !== "rejected") {
+      const prev = LAST_PAID_PERIOD.get(p.instructor_id);
+      if (!prev || p.period > prev) LAST_PAID_PERIOD.set(p.instructor_id, p.period);
+    }
     if (p.status !== "approved" || !p.paid_on) return;
     if (!APPROVED_INDEX.has(p.instructor_id)) APPROVED_INDEX.set(p.instructor_id, []);
     APPROVED_INDEX.get(p.instructor_id).push(p.paid_on);
@@ -343,6 +351,14 @@ function referenceDate(period) {
 // persona está cubierta por un pago vigente en la fecha de referencia.
 function monthSettled(personId, period, payment) {
   if (payment && payment.status !== "rejected") return true;
+  return coveredOn(personId, referenceDate(period));
+}
+
+// ¿Está al día en ese mes por un pago aprobado propio o por la vigencia
+// de un pago anterior? (cuenta como "Aprobado" en los totales)
+function monthApproved(personId, period, payment) {
+  if (payment && payment.status === "approved") return true;
+  if (payment && payment.status === "pending") return false;
   return coveredOn(personId, referenceDate(period));
 }
 
@@ -436,11 +452,18 @@ function billable(p, period) {
  * Meses vencidos (anteriores al actual) sin pago aprobado ni en revisión.
  * `paymentOf(personId, period)` devuelve el pago de ese mes, si hay.
  */
+/*
+ * Meses vencidos (anteriores al actual) sin saldar. Solo cuentan los meses
+ * posteriores al último pago cargado: quien acaba de pagar está al día y no
+ * arrastra meses viejos.
+ */
 function dueMonthsFor(p, paymentOf) {
   if (!p.active && !p.end_month) return []; // pendiente de activación
   let last = addMonths(currentPeriod(), -1);
   if (p.end_month && p.end_month < last) last = p.end_month;
-  const start = startMonthFor(p);
+  let start = startMonthFor(p);
+  const lastPaid = LAST_PAID_PERIOD.get(p.id);
+  if (lastPaid && addMonths(lastPaid, 1) > start) start = addMonths(lastPaid, 1);
   if (start > last) return [];
   return periodsBetween(start, last).filter((period) => !monthSettled(p.id, period, paymentOf(p.id, period)));
 }
