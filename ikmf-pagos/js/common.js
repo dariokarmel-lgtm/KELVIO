@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.01b";
+const APP_VERSION = "2026.11.02";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -226,6 +226,21 @@ function addMonths(period, n) {
   const [y, m] = period.split("-").map(Number);
   const d = new Date(y, m - 1 + n, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+/*
+ * Opciones del selector de mes (valor "YYYY-MM"): de 12 meses atrás a 3
+ * adelante respecto de hoy, ampliado para incluir siempre el mes elegido.
+ */
+function monthSelectOptions(selected) {
+  const now = currentPeriod();
+  let from = addMonths(now, -12);
+  let to = addMonths(now, 3);
+  if (selected < from) from = selected;
+  if (selected > to) to = selected;
+  return periodsBetween(from, to)
+    .map((p) => `<option value="${p.slice(0, 7)}" ${p === selected ? "selected" : ""}>${esc(fmtPeriod(p))}</option>`)
+    .join("");
 }
 
 // Lista de períodos desde `from` hasta `to` inclusive, del más nuevo al más viejo.

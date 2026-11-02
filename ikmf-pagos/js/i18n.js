@@ -427,6 +427,7 @@ const DICT = {
     "user.pw_share": "IKMF Pagos — {url}\nEmail: {email}\nContraseña: {password}\n(Podés cambiarla en Configuración.)",
     "err.only_admin_password": "Solo un administrador puede definir contraseñas.",
     "user.copy_access": "Copiar datos de acceso",
+    "dash.month": "Mes",
   },
 
   en: {
@@ -838,6 +839,7 @@ const DICT = {
     "user.pw_share": "IKMF Fees — {url}\nEmail: {email}\nPassword: {password}\n(You can change it in Settings.)",
     "err.only_admin_password": "Only an administrator can set passwords.",
     "user.copy_access": "Copy sign-in details",
+    "dash.month": "Month",
   },
 
   he: {
@@ -1249,6 +1251,7 @@ const DICT = {
     "user.pw_share": "IKMF תשלומים — {url}\nאימייל: {email}\nסיסמה: {password}\n(אפשר לשנות אותה בהגדרות.)",
     "err.only_admin_password": "רק מנהל מערכת יכול להגדיר סיסמאות.",
     "user.copy_access": "העתקת פרטי הכניסה",
+    "dash.month": "חודש",
   },
 
   fr: {
@@ -1660,6 +1663,7 @@ const DICT = {
     "user.pw_share": "IKMF Cotisations — {url}\nE-mail : {email}\nMot de passe : {password}\n(Tu peux le changer dans Paramètres.)",
     "err.only_admin_password": "Seul un administrateur peut définir des mots de passe.",
     "user.copy_access": "Copier les identifiants",
+    "dash.month": "Mois",
   },
 
   de: {
@@ -2071,6 +2075,7 @@ const DICT = {
     "user.pw_share": "IKMF Beiträge — {url}\nE-Mail: {email}\nPasswort: {password}\n(Du kannst es in den Einstellungen ändern.)",
     "err.only_admin_password": "Nur ein Administrator kann Passwörter festlegen.",
     "user.copy_access": "Zugangsdaten kopieren",
+    "dash.month": "Monat",
   },
 
   it: {
@@ -2482,6 +2487,7 @@ const DICT = {
     "user.pw_share": "IKMF Quote — {url}\nEmail: {email}\nPassword: {password}\n(Puoi cambiarla nelle Impostazioni.)",
     "err.only_admin_password": "Solo un amministratore può impostare le password.",
     "user.copy_access": "Copia dati di accesso",
+    "dash.month": "Mese",
   },
 };
 

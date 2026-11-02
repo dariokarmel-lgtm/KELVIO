@@ -79,7 +79,7 @@ async function refresh() {
 
 function render() {
   const period = state.period;
-  $("month-input").value = period.slice(0, 7);
+  $("month-input").innerHTML = monthSelectOptions(period);
 
   const people = state.people.filter(inFilter);
   const ids = new Set(people.map((p) => p.id));

@@ -157,7 +157,7 @@ function renderAll() {
 
 function renderMonth() {
   const period = state.period;
-  $("month-input").value = period.slice(0, 7);
+  $("month-input").innerHTML = monthSelectOptions(period);
   const isCurrentOrFuture = period >= currentPeriod();
 
   const rows = state.people

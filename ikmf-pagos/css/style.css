@@ -275,3 +275,6 @@ textarea.input { min-height: 72px; resize: vertical; }
 .toast.error { background: var(--color-red); }
 
 .app-version { text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 0 16px 20px; }
+.month-nav { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+.month-pick { font-weight: 600; color: var(--color-text-muted); font-size: 14px; margin-inline-end: 2px; }
+.month-nav select { width: auto; min-width: 160px; color: var(--color-text); font-weight: 600; }
