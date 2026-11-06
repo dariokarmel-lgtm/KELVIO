@@ -82,19 +82,22 @@ function render() {
     }
 
     let actions = "";
-    if (p && p.receipt_path) {
+    if (p && p.group_id) {
+      // Pago grupal (lo cargó el director): se ve con todos sus comprobantes.
+      actions += `<button class="btn sm ghost" data-group-view="${p.id}">${esc(t("inst.view_receipt"))}</button> `;
+    } else if (p && p.receipt_path) {
       actions += `<button class="btn sm ghost" data-receipt="${esc(p.receipt_path)}">${esc(t("inst.view_receipt"))}</button> `;
     }
     if (ME.active) {
       if (!p) {
         if (status !== "covered") actions += `<button class="btn sm primary" data-pay="${period}">${esc(t("inst.pay"))}</button>`;
       } else if (p.status === "rejected") actions += `<button class="btn sm primary" data-edit="${p.id}">${esc(t("inst.resend"))}</button>`;
-      else if (p.status === "pending") actions += `<button class="btn sm ghost" data-edit="${p.id}">${esc(t("common.edit"))}</button>`;
+      else if (p.status === "pending" && !p.group_id) actions += `<button class="btn sm ghost" data-edit="${p.id}">${esc(t("common.edit"))}</button>`;
     }
 
     return `<tr>
       <td><strong>${fmtPeriod(period)}</strong></td>
-      <td>${chip(status)}</td>
+      <td>${chip(status)}${p && p.group_id ? ` <span class="chip group" title="${esc(t("grp.tag_title"))}">${esc(t("grp.tag"))}</span>` : ""}</td>
       <td class="num">${p ? fmtMoney(p.amount, p.currency) : `<span class="sub">${fmtMoney(fee, myCurrency())}</span>`}</td>
       <td>${p ? fmtDate(p.paid_on) : "—"}</td>
       <td>${detail || '<span class="sub">—</span>'}</td>
@@ -244,6 +247,7 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.receipt) openReceipt(b.dataset.receipt);
+  if (b.dataset.groupView) openPaymentReview({ pay: payments.find((p) => p.id === b.dataset.groupView), person: ME, country: ME.country });
   if (b.dataset.pay) openPaymentForm({ period: b.dataset.pay });
   if (b.dataset.edit) openPaymentForm({ existing: payments.find((p) => p.id === b.dataset.edit) });
 });
