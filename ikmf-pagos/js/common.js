@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.02d";
+const APP_VERSION = "2026.11.06";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -475,9 +475,9 @@ function dueMonthsFor(p, paymentOf) {
  * botón en el idioma del navegador; acá se oculta y se usa un botón propio
  * con t(). El input sigue con el mismo id, así que .files funciona igual.
  */
-function fileField(id) {
+function fileField(id, { multiple } = {}) {
   return `<label class="file-pick">
-    <input id="${id}" type="file" accept="image/*,application/pdf" />
+    <input id="${id}" type="file" accept="image/*,application/pdf" ${multiple ? "multiple" : ""} />
     <span class="btn ghost sm">${esc(t("file.choose"))}</span>
     <span class="file-name">${esc(t("file.none"))}</span>
   </label>`;
@@ -487,9 +487,10 @@ document.addEventListener("change", (e) => {
   const input = e.target;
   if (!input.matches || !input.matches(".file-pick input[type=file]")) return;
   const name = input.closest(".file-pick").querySelector(".file-name");
-  const file = input.files && input.files[0];
-  name.textContent = file ? file.name : t("file.none");
-  name.classList.toggle("chosen", !!file);
+  const files = input.files ? [...input.files] : [];
+  name.textContent = files.length > 1 ? t("file.many", { n: files.length, names: files.map((f) => f.name).join(", ") })
+    : files.length ? files[0].name : t("file.none");
+  name.classList.toggle("chosen", files.length > 0);
 });
 
 function validateReceipt(file) {
@@ -508,6 +509,32 @@ async function uploadReceipt(instructorId, period, file) {
   });
   if (error) throw error;
   return path;
+}
+
+// Comprobantes de un pago grupal: carpeta g-<grupo>/.
+async function uploadGroupReceipt(groupId, file, i) {
+  const ext = (file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const path = `g-${groupId}/${Date.now()}-${i + 1}.${ext}`;
+  const { error } = await sb.storage.from("receipts").upload(path, file, {
+    contentType: file.type || undefined,
+    upsert: false,
+  });
+  if (error) throw error;
+  return path;
+}
+
+// Visor de varios comprobantes: botones 1, 2, 3… y el comprobante elegido.
+function renderReceipts(container, paths) {
+  if (!paths || paths.length < 2) return renderReceipt(container, paths && paths[0]);
+  container.innerHTML = `<div class="receipt-tabs">${paths.map((_, i) =>
+    `<button type="button" class="btn ghost sm ${i ? "" : "active"}" data-receipt-i="${i}">${esc(t("grp.receipt_n", { n: i + 1 }))}</button>`).join("")}</div>
+    <div class="receipt-view"></div>`;
+  const view = container.querySelector(".receipt-view");
+  container.querySelectorAll("[data-receipt-i]").forEach((b) => b.addEventListener("click", () => {
+    container.querySelectorAll("[data-receipt-i]").forEach((x) => x.classList.toggle("active", x === b));
+    renderReceipt(view, paths[Number(b.dataset.receiptI)]);
+  }));
+  renderReceipt(view, paths[0]);
 }
 
 async function receiptUrl(path) {
@@ -816,7 +843,8 @@ function openSetPassword(user) {
 // Nombre del instructor como link: al tocarlo se abre la ficha del pago con
 // el comprobante (la abre el handler de data-review de cada página).
 function payNameLink(name, pay) {
-  const clip = pay.receipt_path ? ` <span class="clip" aria-hidden="true">📎</span>` : "";
+  const clip = (pay.receipt_path ? ` <span class="clip" aria-hidden="true">📎</span>` : "")
+    + (pay.group_id ? ` <span class="chip group" title="${esc(t("grp.tag_title"))}">${esc(t("grp.tag"))}</span>` : "");
   return `<button type="button" class="name-link" data-review="${pay.id}" title="${esc(t("receipt.alt"))}">${esc(name)}${clip}</button>`;
 }
 
@@ -864,12 +892,17 @@ function openPaymentReview({ pay, person, country, onDone }) {
         </div>` : `<div class="banner info">${esc(t("rv.only_admin"))}</div>`}
       </div>
       <div>
-        <div class="receipt-view" id="r-receipt"></div>
+        <div id="r-receipt"><div class="receipt-view"></div></div>
         ${pay.receipt_path ? `<p class="sub" style="margin-top:8px">${esc(t("rv.tap_hint"))}</p>` : ""}
       </div>
-    </div>`, { wide: true });
+    </div>
+    ${pay.group_id ? `<div id="r-group" class="group-box"><p class="empty">${esc(t("receipt.loading"))}</p></div>` : ""}`, { wide: true });
 
-  renderReceipt(el.querySelector("#r-receipt"), pay.receipt_path);
+  if (pay.group_id) {
+    loadGroupInto(el, pay, admin, () => { close(); if (onDone) onDone(); });
+  } else {
+    renderReceipt(el.querySelector("#r-receipt .receipt-view"), pay.receipt_path);
+  }
   if (!admin) return;
 
   const setStatus = async (status) => {
@@ -891,6 +924,54 @@ function openPaymentReview({ pay, person, country, onDone }) {
   el.querySelector("#r-approve")?.addEventListener("click", () => setStatus("approved"));
   el.querySelector("#r-reject")?.addEventListener("click", () => setStatus("rejected"));
   el.querySelector("#r-reopen")?.addEventListener("click", () => setStatus("pending"));
+}
+
+/*
+ * Detalle de un pago grupal dentro de la ficha de un pago: todos sus
+ * comprobantes, observaciones, y a qué instructores (usuario y email)
+ * corresponde. El admin puede aprobar todos los pendientes del grupo juntos.
+ */
+async function loadGroupInto(el, pay, admin, onApproved) {
+  const box = el.querySelector("#r-group");
+  const [{ data: group, error }, { data: items, error: e2 }] = await Promise.all([
+    sb.from("payment_groups").select("*").eq("id", pay.group_id).maybeSingle(),
+    sb.from("payments").select("*, instructor:profiles!payments_instructor_id_fkey(full_name,email)")
+      .eq("group_id", pay.group_id).order("period"),
+  ]);
+  if (error || e2 || !group) {
+    box.innerHTML = `<p class="empty">${esc(errMsg(error || e2))}</p>`;
+    renderReceipt(el.querySelector("#r-receipt .receipt-view"), pay.receipt_path);
+    return;
+  }
+  const paths = group.receipt_paths && group.receipt_paths.length ? group.receipt_paths : [pay.receipt_path].filter(Boolean);
+  renderReceipts(el.querySelector("#r-receipt"), paths);
+  const pending = items.filter((x) => x.status === "pending");
+  const people = new Set(items.map((x) => x.instructor_id)).size;
+  box.innerHTML = `
+    <h3>${esc(t("grp.box_title"))}</h3>
+    <p class="sub">${esc(t("grp.box_sub", { people, total: fmtMoney(group.total_amount, group.currency), date: fmtDate(group.paid_on) }))}
+      ${group.reference ? ` · ${esc(t("rv.reference"))}: ${esc(group.reference)}` : ""}</p>
+    ${group.note ? `<div class="banner info" style="white-space:pre-wrap">${esc(group.note)}</div>` : ""}
+    <div class="table-wrap"><table>
+      <thead><tr><th>${esc(t("col.instructor"))}</th><th>${esc(t("common.email"))}</th><th>${esc(t("col.month"))}</th>
+        <th class="num">${esc(t("col.amount"))}</th><th>${esc(t("col.status"))}</th><th>${esc(t("grp.col_note"))}</th></tr></thead>
+      <tbody>${items.map((x) => `<tr${x.id === pay.id ? ' class="current"' : ""}>
+        <td><strong>${esc((x.instructor || {}).full_name || "—")}</strong></td>
+        <td dir="ltr">${esc((x.instructor || {}).email || "")}</td>
+        <td>${esc(fmtPeriod(x.period))}</td>
+        <td class="num">${fmtMoney(x.amount, x.currency)}</td>
+        <td>${chip(x.status)}</td>
+        <td>${esc(x.note || "")}</td></tr>`).join("")}</tbody>
+    </table></div>
+    ${admin && pending.length > 1 ? `<div class="modal-foot" style="justify-content:flex-start">
+      <button class="btn success" id="g-approve-all" type="button">${esc(t("grp.approve_all", { n: pending.length }))}</button></div>` : ""}`;
+  box.querySelector("#g-approve-all")?.addEventListener("click", async () => {
+    const { error: e3 } = await sb.from("payments").update({ status: "approved" })
+      .eq("group_id", pay.group_id).eq("status", "pending");
+    if (e3) return toast(errMsg(e3), true);
+    toast(t("grp.approved_all", { n: pending.length }));
+    onApproved();
+  });
 }
 
 /* ---------- UI ---------- */

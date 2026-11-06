@@ -280,3 +280,16 @@ textarea.input { min-height: 72px; resize: vertical; }
 .month-pick { font-weight: 600; color: var(--color-text-muted); font-size: 14px; margin-inline-end: 2px; }
 .month-nav select { width: auto; min-width: 160px; color: var(--color-text); font-weight: 600; }
 .export-group { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* Pago grupal */
+.chip.group { background: #ede9fe; color: #5b21b6; font-size: 11px; padding: 1px 7px; margin-inline-start: 4px; }
+.group-pick { max-height: 340px; overflow-y: auto; border: 1px solid var(--color-border, #e5e7eb); border-radius: 10px; }
+.group-pick td, .group-pick th { padding: 6px 8px; }
+.group-pick tr.muted td { opacity: .55; }
+.input.sm { padding: 6px 8px; font-size: 13px; }
+.group-total { font-weight: 700; margin: 4px 0 0; }
+.group-box { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--color-border, #e5e7eb); }
+.group-box h3 { margin: 0 0 4px; font-size: 16px; }
+.group-box tr.current td { background: #fef9c3; }
+.receipt-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.receipt-tabs .btn.active { background: var(--color-text, #111); color: #fff; }
