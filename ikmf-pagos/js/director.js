@@ -329,7 +329,7 @@ function openManualPayment(personId, period) {
         </div>
         <div class="field">
           <label for="m-method">${esc(t("man.method"))}</label>
-          <select class="input" id="m-method">${methodOptions("cash")}</select>
+          <select class="input" id="m-method">${methodOptions("paypal")}</select>
         </div>
       </div>
       <div class="field">
@@ -416,7 +416,7 @@ async function openGroupPayment() {
         </div>
         <div class="field">
           <label for="g-method">${esc(t("man.method"))}</label>
-          <select class="input" id="g-method">${methodOptions("transfer")}</select>
+          <select class="input" id="g-method">${methodOptions("paypal")}</select>
         </div>
       </div>
       <div class="field">

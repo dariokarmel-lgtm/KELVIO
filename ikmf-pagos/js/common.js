@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.06b";
+const APP_VERSION = "2026.11.06c";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");

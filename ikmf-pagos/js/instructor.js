@@ -153,7 +153,7 @@ function openPaymentForm({ existing, period } = {}) {
         </div>
         <div class="field">
           <label for="p-method">${esc(t("inst.f_method"))}</label>
-          <select class="input" id="p-method">${methodOptions(existing ? existing.method : "transfer")}</select>
+          <select class="input" id="p-method">${methodOptions(existing ? existing.method : "paypal")}</select>
         </div>
       </div>
       <div class="field">
