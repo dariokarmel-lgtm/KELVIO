@@ -482,6 +482,9 @@ const DICT = {
     "grp.receipt_n": "Comprobante {n}",
     "file.many": "{n} archivos: {names}",
     "err.group_invalid": "El pago grupal no es válido (el instructor no es del país del pago).",
+    "tp.tag": "Pago por tercero",
+    "tp.tag_title": "Lo cargó otra persona (director o administrador), no el propio instructor",
+    "tp.paid_by": "Cargado por",
   },
 
   en: {
@@ -948,6 +951,9 @@ const DICT = {
     "grp.receipt_n": "Receipt {n}",
     "file.many": "{n} files: {names}",
     "err.group_invalid": "Invalid group payment (the instructor is not from the payment's country).",
+    "tp.tag": "Third-party payment",
+    "tp.tag_title": "Recorded by someone else (director or administrator), not the instructor",
+    "tp.paid_by": "Recorded by",
   },
 
   he: {
@@ -1414,6 +1420,9 @@ const DICT = {
     "grp.receipt_n": "אסמכתא {n}",
     "file.many": "{n} קבצים: {names}",
     "err.group_invalid": "תשלום קבוצתי לא תקין (המדריך אינו מהמדינה של התשלום).",
+    "tp.tag": "תשלום על ידי צד שלישי",
+    "tp.tag_title": "נרשם על ידי אדם אחר (מנהל מדינה או מנהל מערכת), לא על ידי המדריך",
+    "tp.paid_by": "נרשם על ידי",
   },
 
   fr: {
@@ -1880,6 +1889,9 @@ const DICT = {
     "grp.receipt_n": "Justificatif {n}",
     "file.many": "{n} fichiers : {names}",
     "err.group_invalid": "Paiement groupé invalide (l'instructeur n'est pas du pays du paiement).",
+    "tp.tag": "Paiement par un tiers",
+    "tp.tag_title": "Enregistré par une autre personne (directeur ou administrateur), pas par l'instructeur",
+    "tp.paid_by": "Enregistré par",
   },
 
   de: {
@@ -2346,6 +2358,9 @@ const DICT = {
     "grp.receipt_n": "Beleg {n}",
     "file.many": "{n} Dateien: {names}",
     "err.group_invalid": "Ungültige Sammelzahlung (der Instruktor ist nicht aus dem Land der Zahlung).",
+    "tp.tag": "Zahlung durch Dritte",
+    "tp.tag_title": "Von einer anderen Person (Direktor oder Administrator) erfasst, nicht vom Instruktor",
+    "tp.paid_by": "Erfasst von",
   },
 
   it: {
@@ -2812,6 +2827,9 @@ const DICT = {
     "grp.receipt_n": "Ricevuta {n}",
     "file.many": "{n} file: {names}",
     "err.group_invalid": "Pagamento di gruppo non valido (l'istruttore non è del paese del pagamento).",
+    "tp.tag": "Pagamento da terzi",
+    "tp.tag_title": "Registrato da un'altra persona (direttore o amministratore), non dall'istruttore",
+    "tp.paid_by": "Registrato da",
   },
 };
 

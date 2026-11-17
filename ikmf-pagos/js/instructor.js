@@ -97,7 +97,7 @@ function render() {
 
     return `<tr>
       <td><strong>${fmtPeriod(period)}</strong></td>
-      <td>${chip(status)}${p && p.group_id ? ` <span class="chip group" title="${esc(t("grp.tag_title"))}">${esc(t("grp.tag"))}</span>` : ""}</td>
+      <td>${chip(status)}${payTags(p)}</td>
       <td class="num">${p ? fmtMoney(p.amount, p.currency) : `<span class="sub">${fmtMoney(fee, myCurrency())}</span>`}</td>
       <td>${p ? fmtDate(p.paid_on) : "—"}</td>
       <td>${detail || '<span class="sub">—</span>'}</td>

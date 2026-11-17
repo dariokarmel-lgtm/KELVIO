@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.06c";
+const APP_VERSION = "2026.11.17";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -842,9 +842,21 @@ function openSetPassword(user) {
 
 // Nombre del instructor como link: al tocarlo se abre la ficha del pago con
 // el comprobante (la abre el handler de data-review de cada página).
+// Pago cargado por otra persona (director o admin), no por el propio instructor.
+function isThirdParty(pay) {
+  return !!(pay && pay.created_by && pay.created_by !== pay.instructor_id);
+}
+
+// Obleas de un pago: "Grupal" y "Pago por tercero".
+function payTags(pay) {
+  if (!pay) return "";
+  return (pay.group_id ? ` <span class="chip group" title="${esc(t("grp.tag_title"))}">${esc(t("grp.tag"))}</span>` : "")
+    + (isThirdParty(pay) ? ` <span class="chip third" title="${esc(t("tp.tag_title"))}">${esc(t("tp.tag"))}</span>` : "");
+}
+
 function payNameLink(name, pay) {
   const clip = (pay.receipt_path ? ` <span class="clip" aria-hidden="true">📎</span>` : "")
-    + (pay.group_id ? ` <span class="chip group" title="${esc(t("grp.tag_title"))}">${esc(t("grp.tag"))}</span>` : "");
+    + payTags(pay);
   return `<button type="button" class="name-link" data-review="${pay.id}" title="${esc(t("receipt.alt"))}">${esc(name)}${clip}</button>`;
 }
 
@@ -865,7 +877,7 @@ function openPaymentReview({ pay, person, country, onDone }) {
   const { el, close } = openModal(`${p.full_name || p.email || ""} — ${fmtPeriod(pay.period)}`, `
     <div class="review-grid">
       <div>
-        <p style="margin:0 0 12px">${chip(pay.status)}</p>
+        <p style="margin:0 0 12px">${chip(pay.status)}${payTags(pay)}</p>
         ${amountWarn}
         <dl class="kv">
           ${admin && country ? kv("common.country", esc(country.name)) : ""}
@@ -876,6 +888,7 @@ function openPaymentReview({ pay, person, country, onDone }) {
           ${kv("rv.method", esc(methodLabel(pay.method)))}
           ${kv("rv.reference", esc(pay.reference || "—"))}
           ${kv("rv.note", esc(pay.note || "—"))}
+          ${isThirdParty(pay) ? kv("tp.paid_by", `<span id="r-paid-by">${esc(t("tp.tag"))}</span>`) : ""}
           ${kv("rv.sent", fmtDate(pay.updated_at))}
           ${pay.reviewed_at ? kv("rv.reviewed", fmtDate(pay.reviewed_at)) : ""}
           ${pay.review_comment ? kv("rv.comment", esc(pay.review_comment)) : ""}
@@ -898,6 +911,13 @@ function openPaymentReview({ pay, person, country, onDone }) {
     </div>
     ${pay.group_id ? `<div id="r-group" class="group-box"><p class="empty">${esc(t("receipt.loading"))}</p></div>` : ""}`, { wide: true });
 
+  if (isThirdParty(pay)) {
+    // Nombre de quien lo cargó (si este usuario puede ver ese perfil).
+    sb.from("profiles").select("full_name,email").eq("id", pay.created_by).maybeSingle().then(({ data }) => {
+      const span = el.querySelector("#r-paid-by");
+      if (span && data) span.textContent = `${data.full_name || ""} (${data.email})`.trim();
+    });
+  }
   if (pay.group_id) {
     loadGroupInto(el, pay, admin, () => { close(); if (onDone) onDone(); });
   } else {

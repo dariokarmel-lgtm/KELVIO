@@ -247,6 +247,14 @@ function canManagePerson(p) {
   return isAdmin() || p.role === "instructor";
 }
 
+// Oblea "Pago por tercero" si su último pago lo cargó otra persona.
+function lastThirdParty(p) {
+  const last = state.payments
+    .filter((x) => x.instructor_id === p.id)
+    .sort((a, b) => b.period.localeCompare(a.period))[0];
+  return isThirdParty(last) ? payTags({ created_by: last.created_by, instructor_id: last.instructor_id }) : "";
+}
+
 function renderInstructors() {
   const showLeft = $("show-left").checked;
   const order = { pending: 0, active: 1, left: 2 };
@@ -268,7 +276,7 @@ function renderInstructors() {
       if (st !== "left") actions += ` <button class="btn sm ghost" data-resend="${p.id}">${esc(t("user.resend"))}</button>`;
     }
     return `<tr>
-      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong>
+      <td><strong>${esc(p.full_name || t("common.no_name"))}</strong>${lastThirdParty(p)}
         <div class="sub">${countryTag(p)}${p.role === "director" ? esc(t("dir.director_tag")) + " · " : ""}${esc(t("dir.registered", { date: fmtDate(p.created_at) }))}</div></td>
       <td><span dir="ltr">${esc(p.email)}</span><div class="sub" dir="ltr">${esc(p.phone || "")}</div></td>
       <td>${accountChip(p)}</td>

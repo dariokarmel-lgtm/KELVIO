@@ -293,3 +293,4 @@ textarea.input { min-height: 72px; resize: vertical; }
 .group-box tr.current td { background: #fef9c3; }
 .receipt-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .receipt-tabs .btn.active { background: var(--color-text, #111); color: #fff; }
+.chip.third { background: #ffedd5; color: #9a3412; font-size: 11px; padding: 1px 7px; margin-inline-start: 4px; text-transform: uppercase; letter-spacing: .02em; }
