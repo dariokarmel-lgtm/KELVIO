@@ -112,7 +112,10 @@ declare
 begin
   if tg_op = 'UPDATE' then
     new.instructor_id := old.instructor_id;
-    new.created_by    := old.created_by;
+    -- Si otra persona reenvía un pago rechazado, pasa a ser suyo (pago por tercero).
+    new.created_by    := case when old.status = 'rejected' and auth.uid() is not null
+                               and auth.uid() <> old.instructor_id
+                              then auth.uid() else old.created_by end;
     new.created_at    := old.created_at;
     own := old.instructor_id = auth.uid();
   end if;

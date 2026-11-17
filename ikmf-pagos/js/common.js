@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.17c";
+const APP_VERSION = "2026.11.17d";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -994,6 +994,477 @@ async function loadGroupInto(el, pay, admin, onApproved) {
     toast(t("grp.approved_all", { n: pending.length }));
     onApproved();
   });
+}
+
+/*
+ * Pago grupal: un director (o admin) registra un solo pago que cubre a
+ * varios instructores de un país, por uno o más meses, con uno o más
+ * comprobantes y observaciones. Se crea un payment_group y una fila de
+ * payments por instructor y mes (unidas por group_id). Lo cargado por un
+ * director queda pendiente hasta que un admin lo apruebe.
+ */
+async function openGroupPayment(ctx) {
+  const admin = ME.role === "admin";
+  const countryById = (id) => ctx.countries.find((c) => c.id === id) || COUNTRY_INDEX.get(id) || null;
+  // country = null: el admin paga por personas de varios países (los de la
+  // vista actual: todos, una región o un país).
+  let country = ctx.country || null;
+  const countryPick = admin
+    ? `<div class="field"><label for="g-country">${esc(t("common.country"))}</label>
+        <select class="input" id="g-country"><option value="">${esc(t("grp.multi_country"))}</option>
+        ${ctx.countries.map((c) => `<option value="${c.id}" ${country && c.id === country.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>`
+    : "";
+  const { el, close } = openModal(t("grp.title"), `
+    <form id="g-form" novalidate>
+      <div class="banner info">${esc(t(admin ? "grp.intro_admin" : "grp.intro"))}</div>
+      ${countryPick}
+      <div class="grid-2">
+        <div class="field">
+          <label for="g-month">${esc(t("grp.from_month"))}</label>
+          <select class="input" id="g-month">${monthSelectOptions(ctx.period)}</select>
+        </div>
+        <div class="field">
+          <label for="g-count">${esc(t("grp.months"))}</label>
+          <select class="input" id="g-count">${[...Array(12)].map((_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select>
+        </div>
+        <div class="field">
+          <label for="g-date">${esc(t("man.date"))}</label>
+          <input class="input" id="g-date" type="date" value="${todayISO()}" max="${todayISO()}" />
+        </div>
+        <div class="field">
+          <label for="g-method">${esc(t("man.method"))}</label>
+          <select class="input" id="g-method">${methodOptions("paypal")}</select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="g-ref">${esc(t("grp.reference"))}</label>
+        <input class="input" id="g-ref" />
+      </div>
+      <div class="field">
+        <label>${esc(t("grp.who"))}</label>
+        <div class="row" style="margin-bottom:8px">
+          <input class="input" id="g-search" placeholder="${esc(t("grp.search_ph"))}" style="flex:1;min-width:160px" />
+          <button type="button" class="btn ghost sm" id="g-all">${esc(t("grp.select_all"))}</button>
+          <button type="button" class="btn ghost sm" id="g-none">${esc(t("grp.select_none"))}</button>
+        </div>
+        <div class="table-wrap group-pick"><table>
+          <thead><tr><th></th><th>${esc(t("col.instructor"))}</th><th>${esc(t("grp.col_months"))}</th>
+            <th class="num">${esc(t("grp.col_amount"))}</th><th>${esc(t("grp.col_note"))}</th></tr></thead>
+          <tbody id="g-body"></tbody>
+        </table></div>
+      </div>
+      <div class="field">
+        <label for="g-files">${esc(t("grp.files"))}</label>
+        ${fileField("g-files", { multiple: true })}
+      </div>
+      <div class="field">
+        <label for="g-note">${esc(t("grp.note"))}</label>
+        <textarea class="input" id="g-note" placeholder="${esc(t("grp.note_ph"))}"></textarea>
+      </div>
+      <p class="group-total" id="g-total"></p>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" id="g-cancel">${esc(t("common.cancel"))}</button>
+        <button type="submit" class="btn ${admin ? "success" : "primary"}" id="g-submit">${esc(t(admin ? "grp.submit_admin" : "grp.submit"))}</button>
+      </div>
+    </form>`, { wide: true });
+
+  const q = (sel) => el.querySelector(sel);
+  let existing = [];   // pagos ya cargados de esas personas en esos meses
+  const picked = new Map(); // id -> { amount, note }
+
+  // Personas que se pueden incluir: instructores activos del país y, si es
+  // un director, él mismo (su propia cuota).
+  // Personas que se pueden incluir: instructores y directores activos (del
+  // país elegido, o de todos los de la vista si el admin eligió varios) y,
+  // si es un director, él mismo (su propia cuota).
+  const candidates = () => {
+    const list = ctx.people.filter((p) => p.id !== ME.id && p.active && ["instructor", "director"].includes(p.role)
+      && (country ? p.country_id === country.id : ctx.countries.some((c) => c.id === p.country_id)));
+    if (ME.role === "director" && country && ME.country_id === country.id) list.unshift(ME);
+    return list;
+  };
+  const countryOfP = (p) => countryById(p.country_id) || country;
+  const curOf = (p) => (countryOfP(p) || {}).currency || "USD";
+  const periods = () => {
+    const from = `${q("#g-month").value}-01`;
+    return [...Array(Number(q("#g-count").value))].map((_, i) => addMonths(from, i));
+  };
+  // Meses de una persona que todavía se pueden pagar (sin pago, o rechazado).
+  const openPeriods = (p) => periods().filter((per) => {
+    const pay = existing.find((x) => x.instructor_id === p.id && x.period === per);
+    return (!pay || pay.status === "rejected") && per >= startMonthFor(p) && (!p.end_month || per <= p.end_month);
+  });
+
+  async function loadExisting() {
+    const ids = candidates().map((p) => p.id);
+    const ps = periods();
+    existing = [];
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await sb.from("payments").select("id,instructor_id,period,status")
+        .in("instructor_id", ids.slice(i, i + 100)).gte("period", ps[0]).lte("period", ps[ps.length - 1]);
+      if (error) return toast(errMsg(error), true);
+      existing.push(...data);
+    }
+  }
+
+  function renderTotal() {
+    let total = 0, rows = 0, people = 0;
+    const byCur = {};
+    const countries = new Set();
+    picked.forEach((v, id) => {
+      const p = candidates().find((x) => x.id === id);
+      if (!p) return;
+      const n = openPeriods(p).length;
+      if (!n) return;
+      const sub = n * (Number(v.amount) || 0);
+      people++; rows += n; total += sub;
+      byCur[curOf(p)] = (byCur[curOf(p)] || 0) + sub;
+      countries.add(p.country_id);
+    });
+    const totalTxt = Object.entries(byCur).map(([c, a]) => fmtMoney(a, c)).join(" + ");
+    q("#g-total").innerHTML = people
+      ? esc(t("grp.total", { people, months: rows, total: totalTxt }))
+        + (countries.size > 1 ? ` <span class="sub">· ${esc(t("grp.n_countries", { n: countries.size }))}</span>` : "")
+      : `<span class="sub">${esc(t("grp.none_selected"))}</span>`;
+    return { total, rows, people, countries: [...countries], currencies: Object.keys(byCur) };
+  }
+
+  function renderPeople() {
+    const term = q("#g-search").value.trim().toLowerCase();
+    const list = candidates().filter((p) => !term
+      || `${p.full_name} ${p.email} ${(countryOfP(p) || {}).name || ""}`.toLowerCase().includes(term));
+    if (!list.length) {
+      q("#g-body").innerHTML = `<tr><td colspan="5" class="empty">${esc(t("grp.no_people"))}</td></tr>`;
+    } else {
+      q("#g-body").innerHTML = list.map((p) => {
+        const open = openPeriods(p);
+        const total = periods().length;
+        const sel = picked.has(p.id);
+        const v = picked.get(p.id) || { amount: feeFor(p, countryOfP(p)), note: "" };
+        const tags = [p.role === "director" ? t("dir.director_tag") : "", !country ? (countryOfP(p) || {}).name : ""].filter(Boolean);
+        const monthsTxt = open.length === total ? t("grp.all_months", { n: total })
+          : open.length ? t("grp.some_months", { n: open.length, total }) : t("grp.already_paid");
+        return `<tr data-pid="${p.id}" class="${open.length ? "" : "muted"}">
+          <td><input type="checkbox" data-pick="${p.id}" ${sel && open.length ? "checked" : ""} ${open.length ? "" : "disabled"} /></td>
+          <td><strong>${esc(p.full_name || "—")}${p.id === ME.id ? ` (${esc(t("grp.me"))})` : ""}</strong><div class="sub"><span dir="ltr">${esc(p.email)}</span>${tags.length ? " · " + esc(tags.join(" · ")) : ""}</div></td>
+          <td class="sub">${esc(monthsTxt)}</td>
+          <td class="num"><input class="input sm" type="number" min="0.01" step="0.01" data-amount="${p.id}" value="${esc(v.amount)}" style="width:90px" ${open.length ? "" : "disabled"} /></td>
+          <td><input class="input sm" data-note="${p.id}" value="${esc(v.note)}" placeholder="${esc(t("grp.row_note_ph"))}" ${open.length ? "" : "disabled"} /></td>
+        </tr>`;
+      }).join("");
+    }
+    renderTotal();
+  }
+
+  async function reload() {
+    q("#g-body").innerHTML = `<tr><td colspan="5" class="empty">${esc(t("inst.loading"))}</td></tr>`;
+    await loadExisting();
+    renderPeople();
+  }
+
+  q("#g-country")?.addEventListener("change", (e) => {
+    country = e.target.value ? countryById(e.target.value) : null;
+    picked.clear();
+    reload();
+  });
+  q("#g-month").addEventListener("change", reload);
+  q("#g-count").addEventListener("change", reload);
+  q("#g-search").addEventListener("input", renderPeople);
+  q("#g-all").addEventListener("click", () => {
+    q("#g-body").querySelectorAll("[data-pick]:not(:disabled)").forEach((c) => {
+      const id = c.dataset.pick;
+      picked.set(id, { amount: q(`[data-amount="${id}"]`).value, note: q(`[data-note="${id}"]`).value });
+    });
+    renderPeople();
+  });
+  q("#g-none").addEventListener("click", () => { picked.clear(); renderPeople(); });
+  q("#g-body").addEventListener("change", (e) => {
+    const id = e.target.dataset.pick;
+    if (id) {
+      if (e.target.checked) picked.set(id, { amount: q(`[data-amount="${id}"]`).value, note: q(`[data-note="${id}"]`).value });
+      else picked.delete(id);
+      renderTotal();
+    }
+  });
+  q("#g-body").addEventListener("input", (e) => {
+    const id = e.target.dataset.amount || e.target.dataset.note;
+    if (!id) return;
+    if (e.target.dataset.amount && !picked.has(id)) {
+      picked.set(id, { amount: "", note: "" });
+      q(`[data-pick="${id}"]`).checked = true;
+    }
+    const v = picked.get(id);
+    if (!v) return;
+    if (e.target.dataset.amount) v.amount = e.target.value; else v.note = e.target.value;
+    renderTotal();
+  });
+  q("#g-cancel").addEventListener("click", close);
+
+  q("#g-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const { total, people, countries, currencies } = renderTotal();
+    if (!people) return toast(t("grp.none_selected"), true);
+    for (const [id, v] of picked) {
+      const p = candidates().find((x) => x.id === id);
+      if (p && openPeriods(p).length && !(Number(v.amount) > 0)) return toast(t("grp.err_amount", { name: p.full_name || p.email }), true);
+    }
+    const files = [...q("#g-files").files];
+    if (!files.length) return toast(t("grp.err_files"), true);
+    for (const f of files) {
+      const v = validateReceipt(f);
+      if (v) return toast(`${f.name}: ${v}`, true);
+    }
+    const btn = q("#g-submit");
+    btn.disabled = true;
+    btn.textContent = t("grp.saving");
+    const groupId = crypto.randomUUID();
+    let saved = false;
+    try {
+      const { error: e1 } = await sb.from("payment_groups").insert({
+        id: groupId,
+        // Un solo país, o null si el admin incluyó personas de varios.
+        country_id: countries.length === 1 ? countries[0] : null,
+        paid_on: q("#g-date").value || todayISO(),
+        method: q("#g-method").value,
+        reference: q("#g-ref").value.trim() || null,
+        note: q("#g-note").value.trim() || null,
+        total_amount: total,
+        currency: currencies[0] || "USD",
+        created_by: ME.id,
+      });
+      if (e1) throw e1;
+      const paths = [];
+      for (let i = 0; i < files.length; i++) paths.push(await uploadGroupReceipt(groupId, files[i], i));
+      const { error: e2 } = await sb.from("payment_groups").update({ receipt_paths: paths }).eq("id", groupId);
+      if (e2) throw e2;
+
+      const base = {
+        paid_on: q("#g-date").value || todayISO(),
+        method: q("#g-method").value,
+        reference: q("#g-ref").value.trim() || null,
+        receipt_path: paths[0],
+        group_id: groupId,
+        status: admin ? "approved" : "pending",
+      };
+      const inserts = [];
+      const updates = [];
+      picked.forEach((v, id) => {
+        const p = candidates().find((x) => x.id === id);
+        if (!p) return;
+        openPeriods(p).forEach((period) => {
+          const row = { ...base, currency: curOf(p), instructor_id: id, period, amount: Number(v.amount), note: v.note.trim() || null };
+          const old = existing.find((x) => x.instructor_id === id && x.period === period);
+          if (old) updates.push([old.id, row]); else inserts.push(row);
+        });
+      });
+      if (inserts.length) {
+        const { error: e3 } = await sb.from("payments").insert(inserts);
+        if (e3) throw e3;
+        saved = true;
+      }
+      for (const [oldId, row] of updates) {
+        const { error: e4 } = await sb.from("payments").update(row).eq("id", oldId);
+        if (e4) throw e4;
+      }
+      close();
+      toast(t(admin ? "grp.done_admin" : "grp.done", { n: inserts.length + updates.length }));
+      if (ctx.onDone) await ctx.onDone();
+    } catch (err) {
+      // Si no se llegó a cargar ningún pago, se borra el grupo vacío.
+      if (!saved) await sb.from("payment_groups").delete().eq("id", groupId);
+      toast(errMsg(err), true);
+      btn.disabled = false;
+      btn.textContent = t(admin ? "grp.submit_admin" : "grp.submit");
+    }
+  });
+
+  await reload();
+}
+
+
+/*
+ * Pago por tercero: un director (o admin) registra el pago de OTRA persona
+ * (instructor o director), por uno o más meses, con su comprobante. Queda
+ * pendiente si lo carga un director; aprobado si lo carga un admin.
+ */
+async function openThirdPartyPayment(ctx) {
+  const admin = ME.role === "admin";
+  const countryOfP = (p) => COUNTRY_INDEX.get(p.country_id) || ctx.country || null;
+  const people = ctx.people
+    .filter((p) => p.id !== ME.id && p.active && ["instructor", "director"].includes(p.role)
+      && (ctx.country ? p.country_id === ctx.country.id : ctx.countries.some((c) => c.id === p.country_id)))
+    .sort((a, b) => (a.full_name || "").localeCompare(b.full_name || ""));
+  const label = (p) => `${p.full_name || "—"} — ${p.email}${p.role === "director" ? " · " + t("dir.director_tag") : ""}${admin ? " · " + ((countryOfP(p) || {}).name || "") : ""}`;
+
+  const { el, close } = openModal(t("tp.form_title"), `
+    <form id="t-form" novalidate>
+      <div class="banner info">${esc(t(admin ? "tp.intro_admin" : "tp.intro"))}</div>
+      <div class="field">
+        <label for="t-person">${esc(t("tp.who"))}</label>
+        <input class="input" id="t-search" placeholder="${esc(t("grp.search_ph"))}" style="margin-bottom:6px" />
+        <select class="input" id="t-person" size="6"></select>
+        <p class="sub" id="t-status" style="margin:6px 0 0"></p>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="t-month">${esc(t("grp.from_month"))}</label>
+          <select class="input" id="t-month">${monthSelectOptions(ctx.period)}</select>
+        </div>
+        <div class="field">
+          <label for="t-count">${esc(t("grp.months"))}</label>
+          <select class="input" id="t-count">${[...Array(12)].map((_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("")}</select>
+        </div>
+        <div class="field">
+          <label for="t-amount">${esc(t("grp.col_amount"))}</label>
+          <input class="input" id="t-amount" type="number" min="0.01" step="0.01" />
+        </div>
+        <div class="field">
+          <label for="t-date">${esc(t("man.date"))}</label>
+          <input class="input" id="t-date" type="date" value="${todayISO()}" max="${todayISO()}" />
+        </div>
+        <div class="field">
+          <label for="t-method">${esc(t("man.method"))}</label>
+          <select class="input" id="t-method">${methodOptions("paypal")}</select>
+        </div>
+        <div class="field">
+          <label for="t-ref">${esc(t("grp.reference"))}</label>
+          <input class="input" id="t-ref" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="t-file">${esc(t("tp.file"))}</label>
+        ${fileField("t-file")}
+      </div>
+      <div class="field">
+        <label for="t-note">${esc(t("grp.note"))}</label>
+        <textarea class="input" id="t-note" placeholder="${esc(t("tp.note_ph"))}"></textarea>
+      </div>
+      <p class="group-total" id="t-total"></p>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" id="t-cancel">${esc(t("common.cancel"))}</button>
+        <button type="submit" class="btn ${admin ? "success" : "primary"}" id="t-submit">${esc(t(admin ? "grp.submit_admin" : "grp.submit"))}</button>
+      </div>
+    </form>`, { wide: true });
+
+  const q = (sel) => el.querySelector(sel);
+  let existing = [];
+  const selected = () => people.find((p) => p.id === q("#t-person").value) || null;
+  const periods = () => {
+    const from = `${q("#t-month").value}-01`;
+    return [...Array(Number(q("#t-count").value))].map((_, i) => addMonths(from, i));
+  };
+  const openPeriods = (p) => periods().filter((per) => {
+    const pay = existing.find((x) => x.period === per);
+    return (!pay || pay.status === "rejected") && per >= startMonthFor(p) && (!p.end_month || per <= p.end_month);
+  });
+
+  function renderList() {
+    const term = q("#t-search").value.trim().toLowerCase();
+    const cur = q("#t-person").value;
+    const list = people.filter((p) => !term || label(p).toLowerCase().includes(term));
+    q("#t-person").innerHTML = list.length
+      ? list.map((p) => `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(label(p))}</option>`).join("")
+      : `<option value="" disabled>${esc(t("grp.no_people"))}</option>`;
+  }
+
+  function renderStatus() {
+    const p = selected();
+    if (!p) {
+      q("#t-status").textContent = t("tp.pick_person");
+      q("#t-total").textContent = "";
+      return 0;
+    }
+    const open = openPeriods(p);
+    const total = periods().length;
+    q("#t-status").textContent = open.length === total ? t("grp.all_months", { n: total })
+      : open.length ? t("grp.some_months", { n: open.length, total }) : t("grp.already_paid");
+    const amount = Number(q("#t-amount").value) || 0;
+    const cur = (countryOfP(p) || {}).currency || "USD";
+    q("#t-total").textContent = open.length
+      ? t("grp.total", { people: 1, months: open.length, total: fmtMoney(amount * open.length, cur) }) : "";
+    return open.length;
+  }
+
+  async function loadExisting() {
+    const p = selected();
+    existing = [];
+    if (!p) return renderStatus();
+    const ps = periods();
+    const { data, error } = await sb.from("payments").select("id,period,status")
+      .eq("instructor_id", p.id).gte("period", ps[0]).lte("period", ps[ps.length - 1]);
+    if (error) toast(errMsg(error), true);
+    existing = data || [];
+    renderStatus();
+  }
+
+  q("#t-search").addEventListener("input", () => {
+    renderList();
+    if (!q("#t-person").value && q("#t-person").options.length === 1 && q("#t-person").options[0].value) {
+      q("#t-person").value = q("#t-person").options[0].value;
+      q("#t-person").dispatchEvent(new Event("change"));
+    }
+  });
+  q("#t-person").addEventListener("change", () => {
+    const p = selected();
+    if (p) q("#t-amount").value = feeFor(p, countryOfP(p)) || "";
+    loadExisting();
+  });
+  q("#t-month").addEventListener("change", loadExisting);
+  q("#t-count").addEventListener("change", loadExisting);
+  q("#t-amount").addEventListener("input", renderStatus);
+  q("#t-cancel").addEventListener("click", close);
+
+  q("#t-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const p = selected();
+    if (!p) return toast(t("tp.pick_person"), true);
+    const open = openPeriods(p);
+    if (!open.length) return toast(t("grp.already_paid"), true);
+    const amount = Number(q("#t-amount").value);
+    if (!(amount > 0)) return toast(t("inst.err_amount"), true);
+    const file = q("#t-file").files[0];
+    if (!admin && !file) return toast(t("grp.err_files"), true);
+    if (file) {
+      const v = validateReceipt(file);
+      if (v) return toast(v, true);
+    }
+    const btn = q("#t-submit");
+    btn.disabled = true;
+    btn.textContent = t("grp.saving");
+    try {
+      const receipt_path = file ? await uploadReceipt(p.id, open[0], file) : null;
+      const base = {
+        instructor_id: p.id,
+        amount,
+        currency: (countryOfP(p) || {}).currency || "USD",
+        paid_on: q("#t-date").value || todayISO(),
+        method: q("#t-method").value,
+        reference: q("#t-ref").value.trim() || null,
+        note: q("#t-note").value.trim() || null,
+        receipt_path,
+        status: admin ? "approved" : "pending",
+      };
+      const inserts = open.filter((per) => !existing.some((x) => x.period === per)).map((period) => ({ ...base, period }));
+      if (inserts.length) {
+        const { error } = await sb.from("payments").insert(inserts);
+        if (error) throw error;
+      }
+      for (const old of existing.filter((x) => x.status === "rejected" && open.includes(x.period))) {
+        const { error } = await sb.from("payments").update({ ...base, period: old.period }).eq("id", old.id);
+        if (error) throw error;
+      }
+      close();
+      toast(t(admin ? "tp.done_admin" : "tp.done", { name: p.full_name || p.email, n: open.length }));
+      if (ctx.onDone) await ctx.onDone();
+    } catch (err) {
+      toast(errMsg(err), true);
+      btn.disabled = false;
+      btn.textContent = t(admin ? "grp.submit_admin" : "grp.submit");
+    }
+  });
+
+  renderList();
+  renderStatus();
 }
 
 /* ---------- UI ---------- */

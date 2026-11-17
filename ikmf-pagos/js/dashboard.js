@@ -407,6 +407,18 @@ document.addEventListener("keydown", (e) => {
   $("prev-month").addEventListener("click", () => { state.period = addMonths(state.period, -1); render(); });
   $("next-month").addEventListener("click", () => { state.period = addMonths(state.period, 1); render(); });
   $("exp-paid").innerHTML = exportButtons("paid");
+  const ctx = () => {
+    const countries = state.countries.filter(countryInFilter);
+    return {
+      people: state.people.concat(isAdmin() ? [] : [ME]).filter((p, i, arr) => arr.findIndex((x) => x.id === p.id) === i),
+      countries,
+      country: countries.length === 1 ? countries[0] : null,
+      period: state.period,
+      onDone: refresh,
+    };
+  };
+  $("group-btn").addEventListener("click", () => openGroupPayment(ctx()));
+  $("third-btn").addEventListener("click", () => openThirdPartyPayment(ctx()));
 
   await refresh();
 
