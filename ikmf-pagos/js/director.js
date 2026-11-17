@@ -399,11 +399,13 @@ function openManualPayment(personId, period) {
  */
 async function openGroupPayment() {
   const admin = isAdmin();
+  // country = null: el admin paga por personas de varios países (los de la
+  // vista actual: todos, una región o un país).
   let country = state.country || (admin ? null : state.countries[0]);
-  const countryPick = admin && !state.country
+  const countryPick = admin
     ? `<div class="field"><label for="g-country">${esc(t("common.country"))}</label>
-        <select class="input" id="g-country"><option value="">${esc(t("grp.pick_country"))}</option>
-        ${state.countries.filter(inRegion).map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></div>`
+        <select class="input" id="g-country"><option value="">${esc(t("grp.multi_country"))}</option>
+        ${state.countries.filter(inRegion).map((c) => `<option value="${c.id}" ${country && c.id === country.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>`
     : "";
   const { el, close } = openModal(t("grp.title"), `
     <form id="g-form" novalidate>
@@ -465,12 +467,17 @@ async function openGroupPayment() {
 
   // Personas que se pueden incluir: instructores activos del país y, si es
   // un director, él mismo (su propia cuota).
+  // Personas que se pueden incluir: instructores y directores activos (del
+  // país elegido, o de todos los de la vista si el admin eligió varios) y,
+  // si es un director, él mismo (su propia cuota).
   const candidates = () => {
-    if (!country) return [];
-    const list = state.people.filter((p) => p.country_id === country.id && p.active && p.role === "instructor");
-    if (ME.role === "director" && ME.country_id === country.id) list.unshift(ME);
+    const list = state.people.filter((p) => p.active && ["instructor", "director"].includes(p.role)
+      && (country ? p.country_id === country.id : true));
+    if (ME.role === "director" && country && ME.country_id === country.id) list.unshift(ME);
     return list;
   };
+  const countryOfP = (p) => countryById(p.country_id) || country;
+  const curOf = (p) => (countryOfP(p) || {}).currency || "USD";
   const periods = () => {
     const from = `${q("#g-month").value}-01`;
     return [...Array(Number(q("#g-count").value))].map((_, i) => addMonths(from, i));
@@ -495,38 +502,44 @@ async function openGroupPayment() {
 
   function renderTotal() {
     let total = 0, rows = 0, people = 0;
+    const byCur = {};
+    const countries = new Set();
     picked.forEach((v, id) => {
       const p = candidates().find((x) => x.id === id);
       if (!p) return;
       const n = openPeriods(p).length;
       if (!n) return;
-      people++; rows += n; total += n * (Number(v.amount) || 0);
+      const sub = n * (Number(v.amount) || 0);
+      people++; rows += n; total += sub;
+      byCur[curOf(p)] = (byCur[curOf(p)] || 0) + sub;
+      countries.add(p.country_id);
     });
-    const cur = country ? country.currency : "USD";
+    const totalTxt = Object.entries(byCur).map(([c, a]) => fmtMoney(a, c)).join(" + ");
     q("#g-total").innerHTML = people
-      ? esc(t("grp.total", { people, months: rows, total: fmtMoney(total, cur) }))
-      : `<span class="sub">${esc(t(country ? "grp.none_selected" : "grp.pick_country"))}</span>`;
-    return { total, rows, people };
+      ? esc(t("grp.total", { people, months: rows, total: totalTxt }))
+        + (countries.size > 1 ? ` <span class="sub">· ${esc(t("grp.n_countries", { n: countries.size }))}</span>` : "")
+      : `<span class="sub">${esc(t("grp.none_selected"))}</span>`;
+    return { total, rows, people, countries: [...countries], currencies: Object.keys(byCur) };
   }
 
   function renderPeople() {
     const term = q("#g-search").value.trim().toLowerCase();
-    const list = candidates().filter((p) => !term || `${p.full_name} ${p.email}`.toLowerCase().includes(term));
-    if (!country) {
-      q("#g-body").innerHTML = `<tr><td colspan="5" class="empty">${esc(t("grp.pick_country"))}</td></tr>`;
-    } else if (!list.length) {
+    const list = candidates().filter((p) => !term
+      || `${p.full_name} ${p.email} ${(countryOfP(p) || {}).name || ""}`.toLowerCase().includes(term));
+    if (!list.length) {
       q("#g-body").innerHTML = `<tr><td colspan="5" class="empty">${esc(t("grp.no_people"))}</td></tr>`;
     } else {
       q("#g-body").innerHTML = list.map((p) => {
         const open = openPeriods(p);
         const total = periods().length;
         const sel = picked.has(p.id);
-        const v = picked.get(p.id) || { amount: feeFor(p, country), note: "" };
+        const v = picked.get(p.id) || { amount: feeFor(p, countryOfP(p)), note: "" };
+        const tags = [p.role === "director" ? t("dir.director_tag") : "", !country ? (countryOfP(p) || {}).name : ""].filter(Boolean);
         const monthsTxt = open.length === total ? t("grp.all_months", { n: total })
           : open.length ? t("grp.some_months", { n: open.length, total }) : t("grp.already_paid");
         return `<tr data-pid="${p.id}" class="${open.length ? "" : "muted"}">
           <td><input type="checkbox" data-pick="${p.id}" ${sel && open.length ? "checked" : ""} ${open.length ? "" : "disabled"} /></td>
-          <td><strong>${esc(p.full_name || "—")}${p.id === ME.id ? ` (${esc(t("grp.me"))})` : ""}</strong><div class="sub" dir="ltr">${esc(p.email)}</div></td>
+          <td><strong>${esc(p.full_name || "—")}${p.id === ME.id ? ` (${esc(t("grp.me"))})` : ""}</strong><div class="sub"><span dir="ltr">${esc(p.email)}</span>${tags.length ? " · " + esc(tags.join(" · ")) : ""}</div></td>
           <td class="sub">${esc(monthsTxt)}</td>
           <td class="num"><input class="input sm" type="number" min="0.01" step="0.01" data-amount="${p.id}" value="${esc(v.amount)}" style="width:90px" ${open.length ? "" : "disabled"} /></td>
           <td><input class="input sm" data-note="${p.id}" value="${esc(v.note)}" placeholder="${esc(t("grp.row_note_ph"))}" ${open.length ? "" : "disabled"} /></td>
@@ -543,7 +556,7 @@ async function openGroupPayment() {
   }
 
   q("#g-country")?.addEventListener("change", (e) => {
-    country = countryById(e.target.value);
+    country = e.target.value ? countryById(e.target.value) : null;
     picked.clear();
     reload();
   });
@@ -582,8 +595,7 @@ async function openGroupPayment() {
 
   q("#g-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!country) return toast(t("grp.pick_country"), true);
-    const { total, people } = renderTotal();
+    const { total, people, countries, currencies } = renderTotal();
     if (!people) return toast(t("grp.none_selected"), true);
     for (const [id, v] of picked) {
       const p = candidates().find((x) => x.id === id);
@@ -603,13 +615,14 @@ async function openGroupPayment() {
     try {
       const { error: e1 } = await sb.from("payment_groups").insert({
         id: groupId,
-        country_id: country.id,
+        // Un solo país, o null si el admin incluyó personas de varios.
+        country_id: countries.length === 1 ? countries[0] : null,
         paid_on: q("#g-date").value || todayISO(),
         method: q("#g-method").value,
         reference: q("#g-ref").value.trim() || null,
         note: q("#g-note").value.trim() || null,
         total_amount: total,
-        currency: country.currency,
+        currency: currencies[0] || "USD",
         created_by: ME.id,
       });
       if (e1) throw e1;
@@ -619,7 +632,6 @@ async function openGroupPayment() {
       if (e2) throw e2;
 
       const base = {
-        currency: country.currency,
         paid_on: q("#g-date").value || todayISO(),
         method: q("#g-method").value,
         reference: q("#g-ref").value.trim() || null,
@@ -633,7 +645,7 @@ async function openGroupPayment() {
         const p = candidates().find((x) => x.id === id);
         if (!p) return;
         openPeriods(p).forEach((period) => {
-          const row = { ...base, instructor_id: id, period, amount: Number(v.amount), note: v.note.trim() || null };
+          const row = { ...base, currency: curOf(p), instructor_id: id, period, amount: Number(v.amount), note: v.note.trim() || null };
           const old = existing.find((x) => x.instructor_id === id && x.period === period);
           if (old) updates.push([old.id, row]); else inserts.push(row);
         });
@@ -659,7 +671,7 @@ async function openGroupPayment() {
     }
   });
 
-  if (country) await reload(); else renderPeople();
+  await reload();
 }
 
 // Nombre de archivo y título según el filtro (país, región o todos).

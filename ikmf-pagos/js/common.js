@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.17";
+const APP_VERSION = "2026.11.17b";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -955,7 +955,7 @@ async function loadGroupInto(el, pay, admin, onApproved) {
   const box = el.querySelector("#r-group");
   const [{ data: group, error }, { data: items, error: e2 }] = await Promise.all([
     sb.from("payment_groups").select("*").eq("id", pay.group_id).maybeSingle(),
-    sb.from("payments").select("*, instructor:profiles!payments_instructor_id_fkey(full_name,email)")
+    sb.from("payments").select("*, instructor:profiles!payments_instructor_id_fkey(full_name,email,country_id,role)")
       .eq("group_id", pay.group_id).order("period"),
   ]);
   if (error || e2 || !group) {
@@ -967,17 +967,19 @@ async function loadGroupInto(el, pay, admin, onApproved) {
   renderReceipts(el.querySelector("#r-receipt"), paths);
   const pending = items.filter((x) => x.status === "pending");
   const people = new Set(items.map((x) => x.instructor_id)).size;
+  const multi = !group.country_id;
+  const cName = (x) => ((COUNTRY_INDEX.get((x.instructor || {}).country_id) || {}).name || "—");
   box.innerHTML = `
     <h3>${esc(t("grp.box_title"))}</h3>
     <p class="sub">${esc(t("grp.box_sub", { people, total: fmtMoney(group.total_amount, group.currency), date: fmtDate(group.paid_on) }))}
       ${group.reference ? ` · ${esc(t("rv.reference"))}: ${esc(group.reference)}` : ""}</p>
     ${group.note ? `<div class="banner info" style="white-space:pre-wrap">${esc(group.note)}</div>` : ""}
     <div class="table-wrap"><table>
-      <thead><tr><th>${esc(t("col.instructor"))}</th><th>${esc(t("common.email"))}</th><th>${esc(t("col.month"))}</th>
+      <thead><tr><th>${esc(t("col.instructor"))}</th><th>${esc(t("common.email"))}</th>${multi ? `<th>${esc(t("common.country"))}</th>` : ""}<th>${esc(t("col.month"))}</th>
         <th class="num">${esc(t("col.amount"))}</th><th>${esc(t("col.status"))}</th><th>${esc(t("grp.col_note"))}</th></tr></thead>
       <tbody>${items.map((x) => `<tr${x.id === pay.id ? ' class="current"' : ""}>
-        <td><strong>${esc((x.instructor || {}).full_name || "—")}</strong></td>
-        <td dir="ltr">${esc((x.instructor || {}).email || "")}</td>
+        <td><strong>${esc((x.instructor || {}).full_name || "—")}</strong>${(x.instructor || {}).role === "director" ? `<div class="sub">${esc(t("dir.director_tag"))}</div>` : ""}</td>
+        <td dir="ltr">${esc((x.instructor || {}).email || "")}</td>${multi ? `<td>${esc(cName(x))}</td>` : ""}
         <td>${esc(fmtPeriod(x.period))}</td>
         <td class="num">${fmtMoney(x.amount, x.currency)}</td>
         <td>${chip(x.status)}</td>
