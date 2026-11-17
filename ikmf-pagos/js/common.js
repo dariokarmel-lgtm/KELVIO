@@ -130,7 +130,7 @@ async function signOut() {
 }
 
 // Versión publicada: se muestra al pie para saber qué versión cargó el navegador.
-const APP_VERSION = "2026.11.17d";
+const APP_VERSION = "2026.11.17e";
 
 function renderVersionFooter() {
   const f = document.createElement("footer");
@@ -988,7 +988,8 @@ async function loadGroupInto(el, pay, admin, onApproved) {
     ${admin && pending.length > 1 ? `<div class="modal-foot" style="justify-content:flex-start">
       <button class="btn success" id="g-approve-all" type="button">${esc(t("grp.approve_all", { n: pending.length }))}</button></div>` : ""}`;
   box.querySelector("#g-approve-all")?.addEventListener("click", async () => {
-    const { error: e3 } = await sb.from("payments").update({ status: "approved" })
+    const comment = (el.querySelector("#r-comment") || {}).value?.trim() || null;
+    const { error: e3 } = await sb.from("payments").update({ status: "approved", review_comment: comment })
       .eq("group_id", pay.group_id).eq("status", "pending");
     if (e3) return toast(errMsg(e3), true);
     toast(t("grp.approved_all", { n: pending.length }));
