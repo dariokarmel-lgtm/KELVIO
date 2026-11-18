@@ -163,17 +163,17 @@ $$;
 
 revoke all on function public.merge_accounts(uuid, uuid) from public, anon, authenticated;
 
--- Paso 2: Herbert Sena — queda la cuenta de Gmail (como director), se borra la de Hotmail.
+-- Paso 2: Hebert Sena — queda la cuenta de Gmail (como director), se borra la de Hotmail.
 do $$
 declare
   g uuid; h uuid; ng int; nh int; r text;
 begin
   select count(*), min(id::text)::uuid into ng, g from profiles
-   where (full_name ilike '%herbert%' or email ilike '%herbert%') and email ilike '%@gmail.%';
+   where ((full_name ilike '%sena%' and full_name ~* 'h?erbert|hebert') or email ilike '%hebertsena%' or email ilike '%herbertsena%') and email ilike '%@gmail.%';
   select count(*), min(id::text)::uuid into nh, h from profiles
-   where (full_name ilike '%herbert%' or email ilike '%herbert%') and email ilike '%@hotmail.%';
+   where ((full_name ilike '%sena%' and full_name ~* 'h?erbert|hebert') or email ilike '%hebertsena%' or email ilike '%herbertsena%') and email ilike '%@hotmail.%';
   if ng <> 1 or nh <> 1 then
-    raise exception 'Se esperaba 1 cuenta Gmail y 1 Hotmail de Herbert; hay % Gmail y % Hotmail. No se cambió nada.', ng, nh;
+    raise exception 'Se esperaba 1 cuenta Gmail y 1 Hotmail de Hebert Sena; hay % Gmail y % Hotmail. No se cambió nada.', ng, nh;
   end if;
   r := public.merge_accounts(g, h);
   update profiles set role = 'director', active = true, end_month = null where id = g;
@@ -183,4 +183,4 @@ end $$;
 select p.full_name, p.email, p.role, p.active, c.name as pais,
        (select count(*) from payments where instructor_id = p.id) as pagos
 from profiles p left join countries c on c.id = p.country_id
-where p.full_name ilike '%herbert%' or p.email ilike '%herbert%';
+where (p.full_name ilike '%sena%' and p.full_name ~* 'h?erbert|hebert') or p.email ilike '%sena%';
